@@ -206,7 +206,7 @@ module MakeIntern (I : INTERNALS)(Eliom : ELIOM) = struct
           let inferred_type_prefix = "eliom_inferred_type_" in
           let mli_eliom = env "%.mli_eliom" in
           Seq [Cmd (S[A "sed"; A "-e" ; A "s/_\\[\\([<>]\\)/[\\1/g"; A mli; Sh ("> " ^ mli_eliom)]);
-               Cmd (S[A "sed"; A "-i"; A "-e" ; A (Format.sprintf "s/'\\(_[a-z0-9_]*\\)/'%s\\1/g" inferred_type_prefix); A mli_eliom])]
+               Cmd (S[A "sed"; A "-i"; A ""; A "-e" ; A (Format.sprintf "s/'\\(_[a-z0-9_]*\\)/'%s\\1/g" inferred_type_prefix); A mli_eliom])]
         )
     | _ -> ()
 
