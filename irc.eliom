@@ -37,10 +37,24 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let create_account_form =
     Env.Form.(make (string "Server" "" ** int "Port" 3724 ** string "username" ""))
       (fun (server, (port, username)) ->
-         Ocsigen_messages.errlog server;
          let%lwt _ = Env.Data.Objects.save_object irc_account_type
              {server; port; username; realname=username; nick=username; }
          in return ()
+      )
+
+  let join_channel_form  =
+    let get_server_name = (fun l ->
+      let irc_account = Env.Data.Objects.get irc_account_type l in
+      Format.sprintf "%s (%s)" irc_account.server irc_account.username
+    )
+    in
+    Env.Form.(make (string "Channel" "" ** string_list "Server" all_accounts get_server_name))
+      (fun (channel, account) ->
+         let real_account = Env.Data.Objects.get irc_account_type account in
+         let%lwt channel = Env.Data.Objects.save_object irc_channel_type
+             {name=channel; server=real_account.server; }
+         in
+         Env.Data.Objects.link_to_parent account channel
       )
 
   let () =
@@ -60,7 +74,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              |> Html5.R.node
            ] |> Html5.C.node
          in
-         Env.F.main_box_sidebar [account_list; create_account_form]
+         Env.F.main_box_sidebar [account_list; create_account_form (); join_channel_form ()]
       )
   
   
@@ -145,6 +159,10 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
             |> List.map (fun l ->
               let service = Eliom_service.preapply ~%service l.name in
               Html5.F.(li [a ~service [pcdata l.name] ()]))
+            |> List.rev
+            |> (fun l ->
+              Html5.F.(li [a ~service:~%account_service [pcdata "Settings"] () ]) :: l)
+            |> List.rev
             |> Widgets.F.list_view)
           |> Html5.R.node
         ] |> Html5.C.node

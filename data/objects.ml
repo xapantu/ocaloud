@@ -31,20 +31,20 @@ module Object_manager = struct
     Protobuf.Decoder.decode_exn dec b
 
   let get_signal name =
-    try
-      Lwt.return @@ fst @@ Hashtbl.find all_signals name
+    Lwt.return @@ try
+      fst @@ Hashtbl.find all_signals name
     with
     | Not_found ->
-        let table = Ocsipersist.open_table name in
-        let signal, signal_setter = S.create [] in
-        let%lwt () = Lwt_unix.sleep 0.3 in
-        let _ = 
-          let%lwt all_objects = Ocsipersist.fold_step (fun n obj q ->
+      let table = Ocsipersist.open_table name in
+      let signal, signal_setter = S.create [] in
+      let _ = 
+        let%lwt all_objects = Ocsipersist.fold_step (fun n obj q ->
           Lwt.return (obj :: q)) table [] in
-          Lwt.return (signal_setter all_objects)
-        in
-        (Hashtbl.add all_signals name (signal, signal_setter);
-        Lwt.return signal)
+        Lwt.return (signal_setter all_objects)
+      in
+      Lwt_react.S.keep signal;
+      Hashtbl.add all_signals name (signal, signal_setter);
+      signal
 
   let get_signal_setter name =
     let%lwt _ = get_signal name in
@@ -55,17 +55,17 @@ module Object_manager = struct
       Lwt.return @@ fst @@ Hashtbl.find all_child_signals obj
     with
     | Not_found ->
-        let signal, signal_setter = S.create [] in
-        let%lwt () = Lwt_unix.sleep 0.3 in
-        let _ = 
-          let%lwt all_objects = Ocsipersist.fold_step (fun n (a, b) q ->
-            if a = obj.id then
+      let signal, signal_setter = S.create [] in
+      let _ = 
+        let%lwt all_objects = Ocsipersist.fold_step (fun n (a, b) q ->
+          if a = obj.id then
             Lwt.return (b :: q)
-            else Lwt.return q) links_table [] in
-          Lwt.return (signal_setter all_objects)
-        in
-        (Hashtbl.add all_child_signals obj (signal, signal_setter);
-        Lwt.return signal)
+          else Lwt.return q) links_table [] in
+        Lwt.return (signal_setter all_objects)
+      in
+      Hashtbl.add all_child_signals obj (signal, signal_setter);
+      Lwt_react.S.keep signal;
+      Lwt.return signal
 
   let get_child_signal_setter name =
     let%lwt _ = get_child_signal name in

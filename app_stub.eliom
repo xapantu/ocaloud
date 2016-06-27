@@ -87,12 +87,15 @@ module type ENV = sig
     val main_box_sidebar : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
   end
   module Form : sig
-    type 'a params_type
-    val string: string -> string -> string params_type
-    val int: string -> int -> int params_type
-    val bool: string -> bool -> bool params_type
-    val ( ** ): 'a params_type -> 'b params_type -> ('a * 'b) params_type
-    val make: 'a params_type -> ('a -> unit Lwt.t) -> div_content
+    (* the first one is the actual datatype, the second one the serialized one - they are equal for simple datatype,
+     * it gets complicated for string list *)
+    type ('a, 'b) params_type
+    val string: string -> string -> (string, string) params_type
+    val string_list: string -> 'a list signal -> ('a -> string) -> ('a, string) params_type
+    val int: string -> int -> (int, int) params_type
+    val bool: string -> bool -> (bool, bool) params_type
+    val ( ** ): ('a, 'b) params_type -> ('c, 'd) params_type -> ('a * 'c, 'b * 'd) params_type
+    val make: ('a, 'b) params_type -> ('a -> unit Lwt.t) -> unit -> div_content
   end
 end
 

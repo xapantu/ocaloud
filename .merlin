@@ -1,0 +1,9 @@
+S .
+B _build
+PKG ocamlbuild
+PKG react
+PKG lwt
+PKG protobuf
+S data
+PKG js_of_ocaml.ocamlbuild
+PKG eliom_server
