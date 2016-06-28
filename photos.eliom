@@ -61,6 +61,14 @@ module Photos(Env:App_stub.ENVBASE) = struct
             }
            )
 
+  let edit_album_form =
+    let album_list = Env.Data.volumes_enabled_for "photos" in
+    Env.Form.(make_parametrized (string "content" "") (string_list "album" album_list Env.Data.volume_id)
+      (fun album content ->
+        Ocsigen_messages.errlog (Format.sprintf "setting content %s for album %s" (Env.Data.volume_id album) content);
+         return ()
+      ))
+             
   let album_load_from_id album =
     try
       let volume = Env.Data.volume_from_id album in
@@ -122,7 +130,7 @@ module Photos(Env:App_stub.ENVBASE) = struct
            let images_list = Eliom_react.S.Down.of_react album.image_list in
            let image_grid_view = create_display_view files_service images_list in
            let _ = resize_client_on_load () in
-           Env.F.main_box_sidebar [album.description; image_grid_view]
+           Env.F.main_box_sidebar [album.description; image_grid_view; edit_album_form album.volume ()]
          with
          | Album_does_not_exist(_) ->
            Env.F.main_box_sidebar

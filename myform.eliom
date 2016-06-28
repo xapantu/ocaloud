@@ -118,11 +118,77 @@ module Form(Data: App_stub.DATA) = struct
              Dom.preventDefault e;
 
              try
-               let _ = get_from_server (~%coservice:string cocaml) (~%get_values ()) in ()
+               let _ = get_from_server ~%coservice (~%get_values ()) in ()
              with
              | Couldnt_unwrap -> Js.Unsafe.eval_string ("alert('Please fill all the required fields.')")
         ] in
         Html5.F.div [Html5.F.(Raw.form ~a:[a_onsubmit full_cb] [elt; Raw.input ~a:[a_input_type `Submit] ()])]
+
+
+  let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> unit Lwt.t) -> 'c -> unit -> Widgets.div_content =
+    fun params params_c callback ->
+      let eliom_params, translator = to_eliom (TProd(params, params_c)) in
+      let coservice: ('b * 'd) cocaml = service_stub eliom_params (fun a -> let l, lc = translator a in
+                                                                    callback lc l) in
+      let rec build_form: type a b. (a, b) params_type -> form_content * ((unit -> b) Eliom_lib.client_value) = function
+        | TAtom(name, default, TString) ->
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name] ()) in
+          i, ([%client
+            (fun () ->
+              let i = Eliom_content.Html5.To_dom.of_input ~%i in
+              Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
+        | TAtom(name, default, TInt) ->
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name] ()) in
+          i, ([%client
+            fun () ->
+              let i = Eliom_content.Html5.To_dom.of_input ~%i in
+              int_of_string @@ Js.to_string i##.value] : (unit -> int) Eliom_lib.client_value)
+        | TAtomOpt(name, default_opt, TStringList(src_list, src_to_string)) ->
+          let down_event =
+            React.S.map (List.map src_to_string) src_list
+            |> Eliom_react.S.Down.of_react in
+          let select = [%client
+            let open Eliom_content.Html5.D in
+            ~%down_event
+            |> React.S.map (fun l ->
+              List.map (fun a ->
+                option (pcdata a)
+              ) l
+              |> Raw.select
+            )
+            |> Html5.R.node
+          ]
+          in
+          Obj.magic (Html5.C.node select), ([%client (fun () ->
+               let i = Eliom_content.Html5.To_dom.of_select ~%select in
+               Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
+        | TProd(a, b) -> 
+          mk_prod a b
+      and
+        (* too much magic in there, anyone got any idea for that? *)
+        mk_prod: type a b c d. ((a, c) params_type -> (b, d) params_type -> form_content * ((unit -> c * d) Eliom_lib.client_value)) = fun a b ->
+          let a, fa = build_form a
+          and b, fb = build_form b in
+          Html5.F.div [a; b], Obj.magic (client_prod (Obj.magic fa) (Obj.magic fb))
+      in
+      let rec to_serialized: type a b. (a, b) params_type -> a -> b = function
+        | TAtomOpt(name, _, TStringList(src_list, src_to_string)) -> src_to_string
+        | TProd(a, b) -> (fun (data_a, data_b) ->
+          to_serialized a data_a, to_serialized b data_b)
+      in
+      let to_serialized_c = to_serialized params_c in
+      fun c () ->
+        let d = to_serialized_c c in
+        let elt, (get_values:(unit -> 'b) Eliom_lib.client_value) = build_form params in
+        let full_cb = [%client fun e ->
+             Dom.preventDefault e;
+             try
+               let _ = get_from_server ~%coservice (~%get_values (), ~%d) in ()
+             with
+             | Couldnt_unwrap -> Js.Unsafe.eval_string ("alert('Please fill all the required fields.')")
+        ] in
+        Html5.F.div [Html5.F.(Raw.form ~a:[a_onsubmit full_cb] [elt; Raw.input ~a:[a_input_type `Submit] ()])]
+
       
 
 end

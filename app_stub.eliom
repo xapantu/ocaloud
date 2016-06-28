@@ -96,6 +96,7 @@ module type ENV = sig
     val bool: string -> bool -> (bool, bool) params_type
     val ( ** ): ('a, 'b) params_type -> ('c, 'd) params_type -> ('a * 'c, 'b * 'd) params_type
     val make: ('a, 'b) params_type -> ('a -> unit Lwt.t) -> unit -> div_content
+    val make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> unit Lwt.t) -> 'c -> unit -> div_content
   end
 end
 
