@@ -18,6 +18,9 @@ module Object_manager = struct
 
   let links_table = Ocsipersist.open_table "_links"
 
+  let get_id_as_string obj =
+    (snd obj).id
+
   let fresh_id () =
     let%lwt myid = Ocsipersist.make_persistent value_store "ids" 1 in
     let%lwt current_id = Ocsipersist.get myid in
@@ -90,6 +93,21 @@ module Object_manager = struct
     let%lwt current_children = get_child_signal a in
     let%lwt setter = get_child_signal_setter a in
     return @@ setter (b.id :: S.value current_children)
+
+  let get_parent (obj_type, _, _) child =
+    let unwrap = function
+      | None -> failwith "No parent for this object"
+      | Some s -> s
+    in
+    let%lwt parent_id = Ocsipersist.fold_step (fun n (a, b) s ->
+      if b = (snd child).id then
+        return (Some a)
+      else
+        return s) links_table None
+    in
+    let parent_id = unwrap parent_id in
+    let obj_table = open_type_table obj_type in
+    Ocsipersist.find obj_table parent_id
 
 
   let get_object_of_type (obj_type, dec, enc) =

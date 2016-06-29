@@ -79,7 +79,7 @@ module Form(Data: App_stub.DATA) = struct
               let i = Eliom_content.Html5.To_dom.of_input ~%i in
               Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
         | TAtom(name, default, TInt) ->
-          let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name] ()) in
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name; a_value (string_of_int default)] ()) in
           i, ([%client
             fun () ->
               let i = Eliom_content.Html5.To_dom.of_input ~%i in

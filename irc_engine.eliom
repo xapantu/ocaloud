@@ -2,15 +2,9 @@
     open React
     open Lwt
 
-    type irc_target = {
-      channel:string; [@key 1]
-      server:string; [@key 2]
-    } [@@deriving protobuf]
-
     type irc_message = {
       content:string; [@key 1]
       timestamp:float; [@key 2]
-      target:irc_target; [@key 3]
     } [@@deriving protobuf]
 
     type irc_channel = {
@@ -35,17 +29,9 @@ module Irc = Irc_client_lwt
 
 open Lwt_unix
 
-let server = "ulminfo.fr"
-let port = 3724
-let username = "ocaloud"
-let realname = "hihi"
-let nick = "ocaloud"
-let channel = "#ocaloud-dbg"
-
-let unwrap b =
-match b with
-| Some x -> x
-| None -> failwith "No value"
+let unwrap = function
+  | Some x -> x
+  | None -> failwith "No value"
 
 module Irc_engine(Env:App_stub.ENVBASE) = struct
 
@@ -56,73 +42,96 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
       List.find (fun p -> (Env.Data.Objects.get irc_channel_type p).name = name) (React.S.value all_channels)
       |> return
     with
-    | Not_found -> Env.Data.Objects.save_object irc_channel_type {name; server;}
+    | Not_found -> Env.Data.Objects.save_object irc_channel_type {name; server = (Env.Data.Objects.get irc_account_type account).server;}
   
-  let new_message content target = 
-    {content; target; timestamp = Unix.gettimeofday () }
+  let new_message content = 
+    {content; timestamp = Unix.gettimeofday () }
 
-  let dummy_account = {server; port; username; realname; nick; }
-  
-  let ping_server connection =
+  let ping_server account connection =
     let open Irc_message in
     let open Env.Data.Objects in
     let save_message = save_object irc_message_type in
-    let%lwt _ = save_message (new_message ("Connected to " ^ server) {server; channel=server}) in
+    let server = (get irc_account_type account).server in
     Irc.listen ~connection ~callback:(
       fun connection result ->
         match result with
         | `Ok ({ command = PRIVMSG (channel, msg) ; _ } as e)->
           let msg = String.trim msg in
-          let%lwt target_channel = get_channel dummy_account channel in
-          let%lwt msg_obj = save_message (new_message msg { server; channel; }) in
+          let%lwt target_channel = get_channel account channel in
+          let%lwt msg_obj = save_message (new_message msg) in
           let%lwt () = link_to_parent target_channel msg_obj in
-          let%lwt msg_obj = save_message (new_message (to_string e) { server; channel=server; }) in
-          let%lwt target_channel = get_channel dummy_account server in
+          let%lwt msg_obj = save_message (new_message (to_string e) ) in
+          let%lwt target_channel = get_channel account server in
           let%lwt () = link_to_parent target_channel msg_obj in
           return ()
         | `Ok e ->
-          let msg = new_message (to_string e) { server; channel=server; } in
+          let msg = new_message (to_string e) in
           let%lwt msg_obj = save_message msg in
-          let%lwt target_channel = get_channel dummy_account server in
+          let%lwt target_channel = get_channel account server in
           let%lwt () = link_to_parent target_channel msg_obj in
           return ()
         | `Error e ->
-          let msg = new_message e { server; channel=server; } in
+          let msg = new_message e in
           let%lwt msg_obj = save_message msg in
-          let%lwt target_channel = get_channel dummy_account server in
+          let%lwt target_channel = get_channel account server in
           let%lwt () = link_to_parent target_channel msg_obj in
           return ()
     )
+
   
-  
-  let _ =
+  let all_connection_handles =
     let%lwt all_accounts = Env.Data.Objects.get_object_of_type irc_account_type in
     let open ReactiveData in
     let handle = RList.from_signal all_accounts in
-    let _ = RList.map (fun l ->
+    RList.map (fun l ->
       let irc_account = Env.Data.Objects.get irc_account_type l in
       let server, port, username, realname, nick =
         irc_account.server, irc_account.port, irc_account.username, irc_account.realname, irc_account.nick in
       Ocsigen_messages.accesslog (Format.sprintf  "connecting to %s with username %s" server username);
       Irc.connect_by_name ~server ~port ~username ~mode:0 ~realname ~nick ()
-      >>= fun connection -> return (unwrap connection)
-      >>= fun connection ->
-      let%lwt chans =
-        sleep 10.0 >>=
-        fun () ->
-        let%lwt all_chans = Env.Data.Objects.object_get_all_children l irc_channel_type in
-          React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type) all_chans
-          |> React.S.map (List.filter (fun c -> (c:irc_channel).server = irc_account.server))
-          |> ReactiveData.RList.from_signal
-          |> RList.map (fun channel ->
-          Ocsigen_messages.errlog (Format.sprintf "joining %s on server %s by %s" channel.name server username);
-            let channel = channel.name in
-            Irc.send_join ~connection ~channel)
-          |> return
-      in
-      return (connection, chans)
-      >>= fun (connection, chans) -> let%lwt a = ping_server connection in Lwt.return (a, chans)
-    ) handle |> RList.signal |> Lwt_react.S.keep in
-    Lwt.return ()
+      >>= fun connection -> return (unwrap connection, l)
+    ) handle |> return
+
+  let all_connections =
+    let open ReactiveData in
+    let%lwt con = all_connection_handles in
+    return (RList.signal con)
+
+  let _ =
+    let open ReactiveData in
+    let%lwt con = all_connection_handles in
+    RList.map (fun a ->
+      a >>= fun (connection, account) ->
+          let server = (Env.Data.Objects.get irc_account_type account).server in
+          let%lwt chans =
+            sleep 10.0 >>=
+            fun () ->
+            let%lwt all_chans = Env.Data.Objects.object_get_all_children account irc_channel_type in
+              React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type) all_chans
+              |> ReactiveData.RList.from_signal
+              |> RList.map (fun channel ->
+              Ocsigen_messages.errlog (Format.sprintf "joining %s on server %s" channel.name server);
+                let channel = channel.name in
+                Irc.send_join ~connection ~channel)
+              |> return
+          in
+          ping_server account connection >>= fun a -> Lwt.return (a, chans)
+    ) con |> RList.signal |> Lwt_react.S.keep |> return
+
+  
+  let send_to_channel channel msg =
+    let open Env.Data.Objects in
+    let%lwt msg_obj = save_object irc_message_type msg in
+    let%lwt () = link_to_parent channel msg_obj in
+    let%lwt account = get_parent irc_account_type channel in
+    let channel = get irc_channel_type channel in
+    let%lwt all_connections = all_connections in
+    Lwt_list.map_s (fun a -> a) (React.S.value all_connections)
+    >>= Lwt_list.find_s (fun (_, l) ->
+      return (l = account)) 
+    >>= fun (connection, account) ->
+        Irc.send_privmsg ~connection ~target:channel.name ~message:msg.content
+
+  
 
 end

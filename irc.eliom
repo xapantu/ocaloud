@@ -17,10 +17,10 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let service =
     Eliom_service.App.service
       ~path: ["i"]
-      ~get_params: Eliom_parameter.(suffix @@ string "channels") ()
+      ~get_params: Eliom_parameter.(suffix @@ string "account" ** string "channels") ()
   
   let main_service =
-    Eliom_service.preapply ~service "all"
+    Eliom_service.preapply ~service ("all", "all")
 
   let account_service =
     Eliom_service.App.service
@@ -28,6 +28,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
       ~get_params: Eliom_parameter.(unit) ()
 
   let%lwt all_accounts = Env.Data.Objects.get_object_of_type irc_account_type
+  let%lwt all_channels = Env.Data.Objects.get_object_of_type irc_channel_type
 
   let all_accounts_client =
     all_accounts
@@ -41,6 +42,11 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              {server; port; username; realname=username; nick=username; }
          in return ()
       )
+
+  let send_message_form =
+    Env.Form.(make_parametrized (string "content" "") (string_list "channel" all_channels Env.Data.Objects.get_id_as_string)
+                (fun channel content ->
+                   Irc_engine.send_to_channel channel (Irc_engine.new_message content)))
 
   let join_channel_form  =
     let get_server_name = (fun l ->
@@ -81,7 +87,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let () =
     Env.Config.App.register
       ~service
-      (fun (channel) () ->
+      (fun (account, channel) () ->
          if channel = "all" then
            let%lwt irc_messages = Env.Data.Objects.get_object_of_type irc_message_type
            in
@@ -123,10 +129,10 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
            Env.F.main_box_sidebar [all_messages]
          else
            let h = Html5.F.h1 [pcdata channel] in
-           let%lwt irc_messages = Env.Data.Objects.get_object_of_type irc_message_type in
+           let channel = List.find (fun l -> (Env.Data.Objects.get irc_channel_type l).name = channel) (React.S.value all_channels) in
+           let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
            let irc_messages = irc_messages
                               |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
-                              |> React.S.map (List.filter (fun s -> s.target.channel = channel))
                               |> Eliom_react.S.Down.of_react
            in
            let messages =
@@ -139,7 +145,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                |> Html5.R.node
              ] |> Html5.C.node
            in
-           Env.F.main_box_sidebar [h; messages]
+           Env.F.main_box_sidebar [h; messages; send_message_form channel ()]
       )
   
   let () =
@@ -156,8 +162,8 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
           ~%all_irc_ev
           |> React.S.map (fun all_chans ->
             all_chans
-            |> List.map (fun l ->
-              let service = Eliom_service.preapply ~%service l.name in
+            |> List.map (fun (l:irc_channel) ->
+              let service = Eliom_service.preapply ~%service (l.server, l.name) in
               Html5.F.(li [a ~service [pcdata l.name] ()]))
             |> List.rev
             |> (fun l ->

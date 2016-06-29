@@ -28,7 +28,9 @@ module type DATA = sig
     val get_object_of_type: 'a object_type -> 'a object_data list signal Lwt.t
     val object_is_outdated: 'a object_data -> bool
     val object_get_all_children: 'c object_data -> 'a object_type -> 'a object_data list signal Lwt.t
+    val get_parent: 'a object_type -> 'c object_data -> 'a object_data Lwt.t
     val get: 'a object_type -> 'a object_data -> 'a
+    val get_id_as_string: 'a object_data -> string
   end
 
 
