@@ -5,6 +5,7 @@
     type irc_message = {
       content:string; [@key 1]
       timestamp:float; [@key 2]
+      author: string; [@key 3]
     } [@@deriving protobuf]
 
     type irc_channel = {
@@ -44,8 +45,8 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
     with
     | Not_found -> Env.Data.Objects.save_object irc_channel_type {name; server = (Env.Data.Objects.get irc_account_type account).server;}
   
-  let new_message content = 
-    {content; timestamp = Unix.gettimeofday () }
+  let new_message content author = 
+    {content; timestamp = Unix.gettimeofday (); author; }
 
   let ping_server account connection =
     let open Irc_message in
@@ -55,23 +56,23 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
     Irc.listen ~connection ~callback:(
       fun connection result ->
         match result with
-        | `Ok ({ command = PRIVMSG (channel, msg) ; _ } as e)->
+        | `Ok ({ command = PRIVMSG (channel, msg) ; prefix = Some author; } as e)->
           let msg = String.trim msg in
           let%lwt target_channel = get_channel account channel in
-          let%lwt msg_obj = save_message (new_message msg) in
+          let%lwt msg_obj = save_message (new_message msg author) in
           let%lwt () = link_to_parent target_channel msg_obj in
-          let%lwt msg_obj = save_message (new_message (to_string e) ) in
+          let%lwt msg_obj = save_message (new_message (to_string e) author ) in
           let%lwt target_channel = get_channel account server in
           let%lwt () = link_to_parent target_channel msg_obj in
           return ()
         | `Ok e ->
-          let msg = new_message (to_string e) in
+          let msg = new_message (to_string e) "server" in
           let%lwt msg_obj = save_message msg in
           let%lwt target_channel = get_channel account server in
           let%lwt () = link_to_parent target_channel msg_obj in
           return ()
         | `Error e ->
-          let msg = new_message e in
+          let msg = new_message e "error" in
           let%lwt msg_obj = save_message msg in
           let%lwt target_channel = get_channel account server in
           let%lwt () = link_to_parent target_channel msg_obj in

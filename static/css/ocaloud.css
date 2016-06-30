@@ -1,10 +1,7 @@
-/* Eliom does some weird things with the .css (probably concatenating them and compress them),
- * so, the @import rule is quite strict, using @import list.css; does NOT work fine.
- * Feel free to find a more reasonable explanation.*/
-@import url(../css/lists.css);
-@import url(../css/two-panes.css);
-@import url(../css/sidebar.css);
-@import url(../css/photos.css);
+@import url(/css/lists.css);
+@import url(/css/two-panes.css);
+@import url(/css/sidebar.css);
+@import url(/css/photos.css);
 
 * {
     font-family: Cantarell, sans-serif;
@@ -14,11 +11,20 @@ body {
 	background-color: #e3f3ff;
 }
 
-.main-wrapper {
+.main-wrapper, .flex-wrapper {
 	position:absolute;
 	top:0;
 	bottom:0;
 	left:200px;
 	right:0;
+}
+.main-wrapper {
+	overflow-y:scroll;
+}
+.flex-wrapper {
+	display:flex;
+	flex-direction:column;
+}
+.irc-view {
 	overflow-y:scroll;
 }

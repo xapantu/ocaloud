@@ -51,5 +51,19 @@ module S (M: App_stub.MIMES) = struct
       ~css:[["css";"ocaloud.css"]]
       (body ([sidebar; main_wrapper])))
 
+  let flex_box_sidebar l =
+    let open Html5.F in
+    let%lwt sidebar =
+      M.build_sidebar ()
+      >>= fun a ->
+      return @@ Html5.F.div ~a:[a_class ["sidebar"]] a
+    in
+    let main_wrapper = Html5.F.div ~a:[a_class ["flex-wrapper"]]
+        l in
+    Lwt.return (Eliom_tools.F.html
+      ~title:"ocaloud"
+      ~css:[["css";"ocaloud.css"]]
+      (body ([sidebar; main_wrapper])))
+
 end
 

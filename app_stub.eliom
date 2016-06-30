@@ -87,6 +87,7 @@ module type ENV = sig
   module F : sig
     val main_box : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
     val main_box_sidebar : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
+    val flex_box_sidebar : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
   end
   module Form : sig
     (* the first one is the actual datatype, the second one the serialized one - they are equal for simple datatype,

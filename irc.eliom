@@ -8,6 +8,15 @@
 
 ]
 
+[%%client
+  let extract_author s =
+        try
+          let i = String.index s '!' in
+          String.sub s 0 i
+        with
+        | Not_found -> s
+]
+
 open React
   
 module IrcApp(Env:App_stub.ENVBASE) = struct
@@ -46,7 +55,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let send_message_form =
     Env.Form.(make_parametrized (string "content" "") (string_list "channel" all_channels Env.Data.Objects.get_id_as_string)
                 (fun channel content ->
-                   Irc_engine.send_to_channel channel (Irc_engine.new_message content)))
+                   Irc_engine.send_to_channel channel (Irc_engine.new_message content "me")))
 
   let join_channel_form  =
     let get_server_name = (fun l ->
@@ -104,7 +113,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                            |> React.S.map @@ React.S.merge (fun l s -> s :: l) []
                            |> React.S.switch
                            |> React.S.map @@ List.map (fun (l, c) -> Env.Data.Objects.get irc_channel_type l, (List.map (Env.Data.Objects.get irc_message_type)) c)
-                           |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare i.timestamp j.timestamp) c)
+                           |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare j.timestamp i.timestamp) c)
                            |> Eliom_react.S.Down.of_react
                            |> return)
            in
@@ -115,7 +124,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  let all_messages = 
                    c
                    |> List.map (fun l ->
-                     Html5.F.(li [pcdata l.content])
+                     Html5.F.(li [pcdata l.author; pcdata ": "; pcdata l.content])
                    )
                    |> Html5.F.ul
                  in
@@ -133,19 +142,32 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
            let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
            let irc_messages = irc_messages
                               |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
+                              |> React.S.map (List.sort (fun i j -> compare i.timestamp j.timestamp))
                               |> Eliom_react.S.Down.of_react
            in
            let messages =
              [%client
-               ~%irc_messages
-               |> React.S.map (List.map (fun l ->
-                 Html5.F.(li [pcdata l.content])
-               ))
-               |> React.S.map Html5.F.ul
-               |> Html5.R.node
+               let message_div =
+                 ~%irc_messages
+                 |> React.S.map (List.map (fun l ->
+                   let t = new%js Js.date_fromTimeValue (l.timestamp *. 1000.) in
+                   Html5.F.(li [pcdata (Js.to_string t##toLocaleTimeString); pcdata " "; pcdata (extract_author l.author); pcdata ": "; pcdata l.content])
+                 ))
+                 |> React.S.map Html5.F.ul
+                 |> Html5.R.node
+                 |> fun a -> Html5.D.div ~a:[Html5.D.a_class ["irc-view"]] [a]
+               in
+               ~%irc_messages 
+               |> React.S.map (fun _ ->
+                 let%lwt () = Lwt_js.sleep 0.1 in
+                 let div = Eliom_content.Html5.To_dom.of_div message_div in
+                 return (div##.scrollTop := (div##.scrollHeight));
+               )
+               |> Lwt_react.S.keep;
+               message_div
              ] |> Html5.C.node
            in
-           Env.F.main_box_sidebar [h; messages; send_message_form channel ()]
+           Env.F.flex_box_sidebar [h; messages; send_message_form channel ()]
       )
   
   let () =
