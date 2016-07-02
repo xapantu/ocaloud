@@ -8,4 +8,4 @@
 <bep/*>: package(lwt.ppx),package(sqlite3),package(sha),package(inotify.lwt),package(ppx_bitstring.ext), package(bitstring),package(lwt.ssl),for-pack(Bep), thread
 <utils/*>:for-pack(Utils), thread
 <utils/kvstore*>:package(sqlite3), thread
-<server/irc*>: package(irc-client.lwt)
+<server/irc*>: package(irc-client.lwt_ssl)

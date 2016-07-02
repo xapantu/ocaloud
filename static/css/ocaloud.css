@@ -2,6 +2,7 @@
 @import url(/css/two-panes.css);
 @import url(/css/sidebar.css);
 @import url(/css/photos.css);
+@import url(/css/irc.css);
 
 * {
     font-family: Cantarell, sans-serif;
@@ -25,6 +26,8 @@ body {
 	display:flex;
 	flex-direction:column;
 }
-.irc-view {
-	overflow-y:scroll;
+
+.flex-wrapper > h1 {
+	margin: 0.2em 0.8em;
+	font-size: 1.3em;
 }

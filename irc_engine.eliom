@@ -26,7 +26,7 @@ let irc_message_type = "irc-message", irc_message_from_protobuf, irc_message_to_
 let irc_channel_type = "irc-channel", irc_channel_from_protobuf, irc_channel_to_protobuf
 let irc_account_type = "irc-account", irc_account_from_protobuf, irc_account_to_protobuf
 
-module Irc = Irc_client_lwt
+module Irc = Irc_client_lwt_ssl
 
 open Lwt_unix
 
@@ -53,6 +53,8 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
     let open Env.Data.Objects in
     let save_message = save_object irc_message_type in
     let server = (get irc_account_type account).server in
+    Ocsigen_messages.errlog "connecting.";
+    let%lwt a = 
     Irc.listen ~connection ~callback:(
       fun connection result ->
         match result with
@@ -78,6 +80,8 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
           let%lwt () = link_to_parent target_channel msg_obj in
           return ()
     )
+    in
+    Ocsigen_messages.errlog "disconnected."; Lwt.return a
 
   
   let all_connection_handles =
@@ -105,16 +109,15 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
       a >>= fun (connection, account) ->
           let server = (Env.Data.Objects.get irc_account_type account).server in
           let%lwt chans =
-            sleep 10.0 >>=
-            fun () ->
             let%lwt all_chans = Env.Data.Objects.object_get_all_children account irc_channel_type in
-              React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type) all_chans
-              |> ReactiveData.RList.from_signal
-              |> RList.map (fun channel ->
+            React.S.map (fun l ->
+              List.map (Env.Data.Objects.get irc_channel_type) l) all_chans
+            |> ReactiveData.RList.from_signal
+            |> RList.map (fun channel ->
               Ocsigen_messages.errlog (Format.sprintf "joining %s on server %s" channel.name server);
-                let channel = channel.name in
-                Irc.send_join ~connection ~channel)
-              |> return
+              let channel = channel.name in
+              Irc.send_join ~connection ~channel)
+            |> return
           in
           ping_server account connection >>= fun a -> Lwt.return (a, chans)
     ) con |> RList.signal |> Lwt_react.S.keep |> return

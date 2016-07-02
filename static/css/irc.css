@@ -1,0 +1,17 @@
+.irc-view {
+	overflow-y:scroll;
+	flex-grow: 1;
+}
+
+.irc-entry > div > form {
+	display:flex;
+	flex-direction:row;
+}
+
+.irc-entry > div > form > input[type="text"] {
+	flex-grow:1;
+}
+
+.irc-entry > div > form > input[type="submit"] {
+	flex-grow:0;
+}

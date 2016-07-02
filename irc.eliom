@@ -151,14 +151,15 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  ~%irc_messages
                  |> React.S.map (List.map (fun l ->
                    let t = new%js Js.date_fromTimeValue (l.timestamp *. 1000.) in
-                   Html5.F.(li [pcdata (Js.to_string t##toLocaleTimeString); pcdata " "; pcdata (extract_author l.author); pcdata ": "; pcdata l.content])
+                   Html5.F.(tr [td [pcdata (Js.to_string t##toLocaleTimeString)]; td [pcdata " "; pcdata (extract_author l.author)]; td [pcdata l.content]])
                  ))
-                 |> React.S.map Html5.F.ul
+                 |> React.S.map Html5.F.table
                  |> Html5.R.node
                  |> fun a -> Html5.D.div ~a:[Html5.D.a_class ["irc-view"]] [a]
                in
                ~%irc_messages 
                |> React.S.map (fun _ ->
+                 (* yes, that's a hack *)
                  let%lwt () = Lwt_js.sleep 0.1 in
                  let div = Eliom_content.Html5.To_dom.of_div message_div in
                  return (div##.scrollTop := (div##.scrollHeight));
@@ -167,7 +168,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                message_div
              ] |> Html5.C.node
            in
-           Env.F.flex_box_sidebar [h; messages; send_message_form channel ()]
+           Env.F.flex_box_sidebar [h; messages; Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
       )
   
   let () =
