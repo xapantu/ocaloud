@@ -120,9 +120,19 @@ module Object_manager = struct
   let object_get_all_children (_, id)  (obj_type, dec, enc) =
     let obj_table = open_type_table obj_type in
     get_child_signal id
-    >>= S.map_s @@ Lwt_list.map_s (fun id ->
-      let%lwt obj = Ocsipersist.find obj_table id in
-      Lwt.return obj
-    )
+    >>= S.map_s begin fun l -> Lwt_list.map_s (fun id ->
+      try%lwt
+        let%lwt obj = Ocsipersist.find obj_table id in
+        Lwt.return (Some obj)
+      with
+      | Not_found -> Lwt.return None
+    ) l
+        >|= List.filter (function
+        | Some s -> true
+        | None -> false)
+      >|= List.map (function
+        | Some s -> s
+        | None -> assert false)
+    end
 
 end

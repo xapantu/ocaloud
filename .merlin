@@ -1,9 +1,15 @@
 S .
 B _build
+B _build/server/**/*
+B _build/type/**/*
 PKG ocamlbuild
 PKG react
 PKG lwt
-PKG protobuf
 S data
-PKG js_of_ocaml.ocamlbuild
-PKG eliom_server
+PKG eliom.server
+PKG eliom.ppx.server
+PKG ppx_deriving_protobuf
+PKG ppx_deriving
+PKG deriving
+PKG lwt.ppx
+PKG compiler-libs.common ppx_deriving.api ppx_tools.metaquot oUnit 

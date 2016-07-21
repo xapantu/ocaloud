@@ -1,6 +1,29 @@
 .irc-view {
 	overflow-y:scroll;
 	flex-grow: 1;
+	box-shadow: -5px 3px 5px -3px black inset;
+	background-color: rgba(255, 255, 255, 0.4);
+}
+
+.irc-view table {
+	border-collapse:collapse;
+	width:100%;
+}
+.irc-view tr td:nth-child(1) {
+	width:10px;
+}
+.irc-view tr td:nth-child(2) {
+	text-align:right;
+	padding-left:1em;
+	white-space:nowrap;
+	width:10px;
+}
+
+.irc-view td {
+	border-left: 0;
+	border-right:0;
+	padding:0.3em;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.3);
 }
 
 .irc-entry > div > form {
