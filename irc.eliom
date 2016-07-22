@@ -41,8 +41,27 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
 
   let all_accounts_client =
     all_accounts
-    |> React.S.map (List.map @@ Env.Data.Objects.get irc_account_type)
-    |> Eliom_react.S.Down.of_react
+    |> React.S.map (fun l ->
+      let signals =
+      List.map (fun account ->
+             Env.Data.Objects.object_get_all_children account irc_connected_type
+             >|= React.S.map (fun states ->
+               (try
+                 List.map (Env.Data.Objects.get irc_connected_type) states
+                 |> List.sort (fun a b -> compare (b:irc_connected).time a.time)
+                 |> List.hd
+                 |> fun c -> c.state
+               with
+               | Not_found | Failure "hd" -> Disconnected),
+               Env.Data.Objects.get irc_account_type account
+             )
+           |> Lwt_main.run
+        ) l
+      in
+      React.S.merge (fun l a -> a::l) [] signals
+    )
+  |> React.S.switch
+  |> Eliom_react.S.Down.of_react
 
   let create_account_form =
     Env.Form.(make (string "Server" "" ** int "Port" 3724 ** string "username" ""))
@@ -81,8 +100,13 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              let open Html5.F in
              ~%all_accounts_client
              |> React.S.map (
-               List.map (fun account ->
-                 li [pcdata account.server]
+               List.map (fun (state, account) ->
+                 let state = match state with
+                   | Connected -> pcdata ": connected"
+                   | Disconnected -> pcdata ": disconnected"
+                   | Connecting -> pcdata ": connecting"
+                 in
+                 li [pcdata account.server; state]
                )
              )
              |> React.S.map Widgets.F.list_view

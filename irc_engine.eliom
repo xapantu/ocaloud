@@ -194,7 +194,8 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
             return (connection, l)
           | None ->
             Ocsigen_messages.accesslog ("Couldn't connect to irc server");
-            Env.Data.Objects.save_object irc_connected_type { state = Disconnected; time = Unix.gettimeofday (); }
+            Lwt_unix.sleep 1.0 
+            >>= fun () -> Env.Data.Objects.save_object irc_connected_type { state = Disconnected; time = Unix.gettimeofday (); }
             >>= Env.Data.Objects.link_to_parent l
             >>=  fun () -> return (connection, l)
     ) handle |> return
