@@ -31,12 +31,19 @@
       state: connection_state; [@key 1]
       time: float; [@key 2]
     } [@@deriving protobuf]
+
+    type irc_user_list = {
+      users: string list; [@key 1]
+      time: float; [@key 2]
+    } [@@deriving protobuf]
+
 ]
 
 let irc_message_type = "irc-message", irc_message_from_protobuf, irc_message_to_protobuf
 let irc_channel_type = "irc-channel", irc_channel_from_protobuf, irc_channel_to_protobuf
 let irc_account_type = "irc-account", irc_account_from_protobuf, irc_account_to_protobuf
 let irc_connected_type = "irc-connected", irc_connected_from_protobuf, irc_connected_to_protobuf
+let irc_user_list_type = "irc-user-list", irc_user_list_from_protobuf, irc_user_list_to_protobuf
 
 module Irc = Irc_client_lwt_ssl
 
@@ -45,6 +52,24 @@ open Lwt_unix
 let unwrap = function
   | Some x -> x
   | None -> failwith "No value"
+
+let split_on_char sep s =
+  let r = ref [] in
+  let j = ref (String.length s) in
+  for i = String.length s - 1 downto 0 do
+    if s.[i] = sep then begin
+      r := String.sub s (i + 1) (!j - i - 1) :: !r;
+      j := i
+    end
+  done;
+  String.sub s 0 !j :: !r
+
+let extract_author s =
+  try
+    let i = String.index s '!' in
+    String.sub s 0 i
+  with
+  | Not_found -> s
 
 module Irc_engine(Env:App_stub.ENVBASE) = struct
 
@@ -70,6 +95,34 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
     let open Env.Data.Objects in
     let save_message = save_object irc_message_type in
     let server = (get irc_account_type account).server in
+    let nick = (get irc_account_type account).nick in
+    let users = Hashtbl.create 100 in
+    let save_users channel =
+      let%lwt user_list = Env.Data.Objects.save_object irc_user_list_type { users = Hashtbl.find users channel; time = Unix.gettimeofday () } in
+      let%lwt channel = get_channel account channel in
+      Env.Data.Objects.link_to_parent channel user_list
+    in
+    let get_users channel =
+      try
+        Hashtbl.find users channel
+      with
+      | Not_found -> Hashtbl.add users channel []; []
+    in
+    let add_user channel user =
+      let l = get_users channel in
+      Hashtbl.replace users channel (user::l);
+      save_users channel
+    in
+    let add_users channel users' =
+      let l = get_users channel in
+      Hashtbl.replace users channel (users' @ l);
+      save_users channel
+    in
+    let rm_user channel user =
+      let l = get_users channel in
+      Hashtbl.replace users channel (List.filter ((<>) user) l);
+      save_users channel
+    in
     Ocsigen_messages.errlog "connecting.";
     let%lwt a = 
       Irc.listen ~connection ~callback:(
@@ -80,12 +133,34 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
             let%lwt target_channel = get_channel account channel in
             let%lwt msg_obj = save_message (new_message msg author) in
             let%lwt () = link_to_parent target_channel msg_obj in
-            let%lwt msg_obj = save_message (new_message (to_string e) author ) in
-            let%lwt target_channel = get_channel account server in
-            let%lwt () = link_to_parent target_channel msg_obj in
             return ()
+          | `Ok ({ command = Other ("353", params) ; _ } as e) when List.length params > 3 ->
+            let channel = List.nth params 2 in
+            let users = List.nth params 3 |> split_on_char ' ' in
+            add_users channel users
+          | `Ok ({ command = PART (channels, msg) ; prefix = Some author; } as e)->
+            let author = extract_author author in
+            Lwt_list.iter_s (fun i ->
+              let%lwt target_channel = get_channel account i in
+              let%lwt msg_obj = save_message (new_message (Format.sprintf "%s left." author) "") in
+              let%lwt () = link_to_parent target_channel msg_obj in
+              rm_user i author) channels
+          | `Ok ({ command = JOIN (channels, _) ; prefix = Some author; } as e)->
+            let author = extract_author author in
+            if author <> nick then
+              Lwt_list.iter_s (fun i ->
+                let%lwt target_channel = get_channel account i in
+                let%lwt msg_obj = save_message (new_message (Format.sprintf "%s joined." author) "") in
+                let%lwt () = link_to_parent target_channel msg_obj in
+                add_user i author) channels
+            else
+              Lwt_list.iter_s (fun i ->
+                let%lwt target_channel = get_channel account i in
+                let%lwt msg_obj = save_message (new_message (Format.sprintf "%s joined." author) "") in
+                link_to_parent target_channel msg_obj) channels
           | `Ok e ->
-            let msg = new_message (to_string e) "server" in
+            Ocsigen_messages.errlog (to_string e);
+            let msg = new_message (to_string e) "" in
             let%lwt msg_obj = save_message msg in
             let%lwt target_channel = get_channel account server in
             let%lwt () = link_to_parent target_channel msg_obj in
@@ -141,6 +216,7 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
         let%lwt chans =
           let%lwt all_chans = Env.Data.Objects.object_get_all_children account irc_channel_type in
           React.S.map (fun l ->
+            Ocsigen_messages.errlog "joining channels";
             List.map (Env.Data.Objects.get irc_channel_type) l) all_chans
           |> ReactiveData.RList.from_signal
           |> RList.map (fun channel ->

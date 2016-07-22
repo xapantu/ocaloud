@@ -13,3 +13,4 @@ PKG ppx_deriving
 PKG deriving
 PKG lwt.ppx
 PKG compiler-libs.common ppx_deriving.api ppx_tools.metaquot oUnit 
+PKG irc-client.lwt_ssl

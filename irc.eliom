@@ -144,11 +144,24 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              >|= React.S.map (fun states ->
                try
                  List.map (Env.Data.Objects.get irc_connected_type) states
-                 |> List.sort (fun a b -> compare b.time a.time)
+                 |> List.sort (fun a b -> compare (b:irc_connected).time a.time)
                  |> List.hd
                  |> fun c -> c.state
                with
-               | Not_found -> Disconnected
+               | Not_found | Failure "hd" -> Disconnected
+             )
+             >|= Eliom_react.S.Down.of_react
+           in
+           let%lwt user_list =
+             Env.Data.Objects.object_get_all_children channel irc_user_list_type
+             >|= React.S.map (fun users ->
+               try
+                 List.map (Env.Data.Objects.get irc_user_list_type) users
+                 |> List.sort (fun a b -> compare (b:irc_user_list).time a.time)
+                 |> List.hd
+                 |> fun c -> c.users
+               with
+               | Not_found | Failure "hd" -> []
              )
              >|= Eliom_react.S.Down.of_react
            in
@@ -163,8 +176,15 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  Html5.F.h1 [pcdata ~%channelname; pcdata "connected"] 
              ) ~%account_state
              |> Html5.R.node
-             ] |> Html5.C.node
-           in
+             ] |> Html5.C.node in
+           let userlist =
+             [%client
+             React.S.map (fun l ->
+               Html5.F.ul (List.map (fun u ->
+                 li [pcdata u]) l)
+             ) ~%user_list
+             |> Html5.R.node
+             ] |> Html5.C.node in
            let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
            let irc_messages = irc_messages
                               |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
@@ -194,7 +214,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                message_div
              ] |> Html5.C.node
            in
-           Env.F.flex_box_sidebar [h; messages; Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
+           Env.F.flex_box_sidebar [h; Html5.D.(div ~a:[a_class ["irc-user-message"]] [userlist; messages]); Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
       )
   
   let () =

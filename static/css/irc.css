@@ -1,8 +1,6 @@
 .irc-view {
 	overflow-y:scroll;
 	flex-grow: 1;
-	box-shadow: -5px 3px 5px -3px black inset;
-	background-color: rgba(255, 255, 255, 0.4);
 }
 
 .irc-view table {
@@ -37,4 +35,19 @@
 
 .irc-entry > div > form > input[type="submit"] {
 	flex-grow:0;
+}
+
+.irc-user-message {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+	box-shadow: -5px 3px 5px -3px black inset;
+	background-color: rgba(255, 255, 255, 0.4);
+}
+
+.irc-user-message > ul {
+	margin:0;
+	padding:0.2em;
+	min-width:100px;
+	border-right: 1px solid gray;
 }
