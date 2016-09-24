@@ -58,7 +58,9 @@ module Form(Data: App_stub.DATA) = struct
   (* too much magic in that… *)
   let rec to_eliom: type a b c. (a, b) params_type -> ((b, 'd, c) Eliom_parameter.params_type * (b -> a)) = function
     | TAtom(n, _, TString) -> Obj.magic @@ (Eliom_parameter.string n, fun i -> i)
+    | TAtom(n, _, TStringPassword) -> Obj.magic @@ (Eliom_parameter.string n, fun i -> i)
     | TAtom(n, _, TInt) -> Obj.magic @@ (Eliom_parameter.int n, fun i -> i)
+    | TAtom(n, _, TBool) -> Obj.magic @@ (Eliom_parameter.bool n, fun i -> i)
     | TProd(a, b) ->
       let p1, t1 = to_eliom a in
       let p2, t2 = to_eliom b in
@@ -66,6 +68,8 @@ module Form(Data: App_stub.DATA) = struct
     | TAtomOpt(n, _, TStringList(src_list, to_string)) ->
       Obj.magic @@ (Eliom_parameter.string n, (fun i ->
         List.find (fun a -> to_string a = i) (React.S.value src_list)))
+    | TAtom(_, _, TStringList(_)) -> failwith "string list not mandatory"
+    | TAtomOpt(_) -> failwith "unhandled optional field"
 
   let make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> unit) Eliom_lib.client_value option -> unit -> Widgets.div_content =
     fun params callback client_callback ->
@@ -78,12 +82,24 @@ module Form(Data: App_stub.DATA) = struct
             (fun () ->
               let i = Eliom_content.Html5.To_dom.of_input ~%i in
               Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
+        | TAtom(name, default, TStringPassword) ->
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Password; a_placeholder name] ()) in
+          i, ([%client
+            (fun () ->
+              let i = Eliom_content.Html5.To_dom.of_input ~%i in
+              Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
         | TAtom(name, default, TInt) ->
           let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name; a_value (string_of_int default)] ()) in
           i, ([%client
             fun () ->
               let i = Eliom_content.Html5.To_dom.of_input ~%i in
               int_of_string @@ Js.to_string i##.value] : (unit -> int) Eliom_lib.client_value)
+        | TAtom(name, default, TBool) ->
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Checkbox; a_placeholder name; a_value (string_of_bool default)] ()) in
+          i, ([%client
+            fun () ->
+              let i = Eliom_content.Html5.To_dom.of_input ~%i in
+              bool_of_string @@ Js.to_string i##.value] : (unit -> bool) Eliom_lib.client_value)
         | TAtomOpt(name, default_opt, TStringList(src_list, src_to_string)) ->
           let down_event =
             React.S.map (List.map src_to_string) src_list
@@ -105,6 +121,8 @@ module Form(Data: App_stub.DATA) = struct
                Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
         | TProd(a, b) -> 
           mk_prod a b
+        | TAtom(_, _, TStringList(_)) -> failwith "stringlist must be optional"
+        | TAtomOpt(_) -> failwith "optional not properly handled"
       and
         (* too much magic in there, anyone got any idea for that? *)
         mk_prod: type a b c d. ((a, c) params_type -> (b, d) params_type -> form_content * ((unit -> c * d) Eliom_lib.client_value)) = fun a b ->
@@ -138,6 +156,18 @@ module Form(Data: App_stub.DATA) = struct
       let coservice: (('b * 'd), unit) cocaml = service_stub eliom_params (fun a -> let l, lc = translator a in
                                                                     callback lc l) in
       let rec build_form: type a b. (a, b) params_type -> form_content * ((unit -> b) Eliom_lib.client_value) = function
+        | TAtom(name, default, TStringPassword) ->
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Password; a_placeholder name] ()) in
+          i, ([%client
+            (fun () ->
+              let i = Eliom_content.Html5.To_dom.of_input ~%i in
+              Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
+        | TAtom(name, default, TBool) ->
+          let i = Html5.D.(Raw.input ~a:[a_input_type `Checkbox; a_placeholder name; a_value (string_of_bool default)] ()) in
+          i, ([%client
+            fun () ->
+              let i = Eliom_content.Html5.To_dom.of_input ~%i in
+              bool_of_string @@ Js.to_string i##.value] : (unit -> bool) Eliom_lib.client_value)
         | TAtom(name, default, TString) ->
           let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name] ()) in
           i, ([%client
@@ -171,6 +201,8 @@ module Form(Data: App_stub.DATA) = struct
                Js.to_string i##.value)] : (unit -> string) Eliom_lib.client_value)
         | TProd(a, b) -> 
           mk_prod a b
+        | TAtom(_, _, TStringList(_)) -> failwith "stringlist must be optional"
+        | TAtomOpt(_) -> failwith "optional not properly handled"
       and
         (* too much magic in there, anyone got any idea for that? *)
         mk_prod: type a b c d. ((a, c) params_type -> (b, d) params_type -> form_content * ((unit -> c * d) Eliom_lib.client_value)) = fun a b ->
@@ -182,6 +214,7 @@ module Form(Data: App_stub.DATA) = struct
         | TAtomOpt(name, _, TStringList(src_list, src_to_string)) -> src_to_string
         | TProd(a, b) -> (fun (data_a, data_b) ->
           to_serialized a data_a, to_serialized b data_b)
+        | _ -> failwith "unable to serialize"
       in
       let to_serialized_c = to_serialized params_c in
       fun c () ->
