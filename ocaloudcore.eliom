@@ -25,7 +25,8 @@ module Data = Data.Volume_manager.VolumeManager(Config)
 (* Apps can register to read, write, use a filetype, and ask for apps
  * that can do those things. *)
 module Mimes = Mimes(Config)
-module User = User(Data)
+(*module User = User(Data)*)
+
 
 module Env = struct
   module Mimes = Mimes
@@ -88,4 +89,5 @@ let () = Mimes.register_public "main" main_service
     open Irc
     open Myform
     open Offline
+    open Welcome
 ]

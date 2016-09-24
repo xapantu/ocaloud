@@ -1,12 +1,17 @@
+[%%shared 
 open Lwt
 open Eliom_lib
 open Eliom_content
+]
 open Html5
 open F
 
 module Welcome(E:App_stub.ENV) = struct
+
+  module Dumb_password = Dumb_password.Dumb_password(E)
+
   let main_service =
-    Eliom_service.Http.service ~path:[] ~get_params:Eliom_parameter.unit ()
+    Eliom_service.App.service ~path:[] ~get_params:Eliom_parameter.unit ()
 
   let () = Eliom_registration.Any.register
       ~service:main_service
@@ -15,13 +20,32 @@ module Welcome(E:App_stub.ENV) = struct
                           |> List.map (fun (name, service) ->
                             a service [pcdata name] ()
                           ) in
-         Eliom_registration.Html5.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
+         let logged =
+           User.login_signal ()
+           |> Eliom_react.S.Down.of_react
+         in
+         let login_widget = Dumb_password.main_widget () in
+         let logged_mention =
+           [%client
+             ~%logged
+             |> React.S.map begin function
+               | Some l ->
+                 Html5.F.(span [pcdata l])
+               | None ->
+                 Html5.F.(div [~%login_widget; span [pcdata "unlogged"]]) end
+             |> Html5.R.node
+           ] |> Html5.C.node in
+         E.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
            (Eliom_tools.F.html
               ~js:[["js"; "app.js"]]
               ~title:"ocaloud"
               ~css:[["css";"ocaloud.css"]]
               Html5.F.(body (
-                all_public
+                [logged_mention; div all_public]
               )))
       )
 end
+
+[%%client
+    open Dumb_password
+]

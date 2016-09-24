@@ -69,7 +69,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
          let%lwt _ = Env.Data.Objects.save_object irc_account_type
              {server; port; username; realname=username; nick=username; }
          in return ()
-      )
+      ) None
 
   let send_message_form =
     Env.Form.(make_parametrized (string "content" "") (string_list "channel" all_channels Env.Data.Objects.get_id_as_string)
@@ -89,7 +89,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              {name=channel; server=real_account.server; }
          in
          Env.Data.Objects.link_to_parent account channel
-      )
+      ) None
 
   let () =
     Env.Config.App.register

@@ -1,12 +1,12 @@
 [%%shared
     open Eliom_content
     open Eliom_lib
-    type 'a cocaml = (unit, 'a, Eliom_service.service_method,
+    type ('a, 'b) cocaml = (unit, 'a, Eliom_service.service_method,
                       Eliom_service.attached,
                       Eliom_service.service_kind,
                       [ `WithoutSuffix ], unit, string,
                       Eliom_service.registrable,
-                      unit Eliom_service.ocaml_service) Eliom_service.service
+                      'b Eliom_service.ocaml_service) Eliom_service.service
     type form_content = Html5_types.form_content_fun Eliom_content.Html5.elt
 ]
 [%%client
@@ -67,10 +67,10 @@ module Form(Data: App_stub.DATA) = struct
       Obj.magic @@ (Eliom_parameter.string n, (fun i ->
         List.find (fun a -> to_string a = i) (React.S.value src_list)))
 
-  let make: ('a, 'b) params_type -> ('a -> unit Lwt.t) -> unit -> Widgets.div_content =
-    fun params callback ->
+  let make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> unit) Eliom_lib.client_value option -> unit -> Widgets.div_content =
+    fun params callback client_callback ->
       let eliom_params, (translator: 'b -> 'a) = to_eliom params in
-      let coservice: 'b cocaml = service_stub eliom_params (fun l -> callback (translator l)) in
+      let coservice: ('b, 'c) cocaml = service_stub eliom_params (fun l -> callback (translator l)) in
       let rec build_form: type a b. (a, b) params_type -> form_content * ((unit -> b) Eliom_lib.client_value) = function
         | TAtom(name, default, TString) ->
           let i = Html5.D.(Raw.input ~a:[a_input_type `Text; a_placeholder name] ()) in
@@ -118,7 +118,14 @@ module Form(Data: App_stub.DATA) = struct
              Dom.preventDefault e;
 
              try
-               let _ = get_from_server ~%coservice (~%get_values ()) in ()
+               (* FIXME: ok, we need to make sure this is not garbage collected too quickly,
+                * unfortunately there is no Lwt_main in js *)
+               let _ =
+                 let%lwt res = get_from_server ~%coservice (~%get_values ()) in
+                 match ~%client_callback with
+                 | Some f -> Lwt.return (f res)
+                 | None -> Lwt.return ()
+               in ()
              with
              | Couldnt_unwrap -> Js.Unsafe.eval_string ("alert('Please fill all the required fields.')")
         ] in
@@ -128,7 +135,7 @@ module Form(Data: App_stub.DATA) = struct
   let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> unit Lwt.t) -> 'c -> unit -> Widgets.div_content =
     fun params params_c callback ->
       let eliom_params, translator = to_eliom (TProd(params, params_c)) in
-      let coservice: ('b * 'd) cocaml = service_stub eliom_params (fun a -> let l, lc = translator a in
+      let coservice: (('b * 'd), unit) cocaml = service_stub eliom_params (fun a -> let l, lc = translator a in
                                                                     callback lc l) in
       let rec build_form: type a b. (a, b) params_type -> form_content * ((unit -> b) Eliom_lib.client_value) = function
         | TAtom(name, default, TString) ->
