@@ -17,7 +17,15 @@ let user_id_ref =
 let user_id_signal = 
   Eliom_reference.Volatile.eref
     ~scope:Eliom_common.default_session_scope
-    (React.S.create None)
+    None
+
+let unwrap_signal () =
+  match Eliom_reference.Volatile.get user_id_signal with
+  | Some (s, g) -> s, g
+  | None ->
+    let s, g = React.S.create None in
+    Eliom_reference.Volatile.set user_id_signal (Some (s, g));
+    s, g
 
 let permission_table = (open_table "permissions":string list table)
 let permission_list_table = (open_table "permissions_list":unit table)
@@ -62,8 +70,7 @@ let set_permission login perm value =
 (* Save the login in the session variables, load permissions, create them if needed, etc. *)
 let perform_login login =
   Eliom_reference.Volatile.set user_id_ref (Some login);
-  let _, setter = Eliom_reference.Volatile.get user_id_signal in
-  setter (Some login);
+  (snd (unwrap_signal ())) (Some login);
   try%lwt
     let%lwt user_permissions = find permission_table login in
     let _ = List.find (fun c -> c = "logged") user_permissions
@@ -79,6 +86,5 @@ let get_login () =
 let ensure_login () = let _ = get_login () in return ()
 
 let login_signal () =
-  let signal, _ = Eliom_reference.Volatile.get user_id_signal in
-  signal
+    fst (unwrap_signal ())
 

@@ -132,14 +132,45 @@ module Form(Data: App_stub.DATA) = struct
       in
       fun () ->
         let elt, (get_values:(unit -> 'b) Eliom_lib.client_value) = build_form params in
+        let myinput = Html5.D.(input ~a:[a_input_type `Submit] ()) in
         let full_cb = [%client fun e ->
              Dom.preventDefault e;
+
+             let rec disable_everything src =
+               Dom_html.CoerceTo.element src
+               |> fun a -> Js.Opt.map a (fun src ->
+                 let src = Dom_html.CoerceTo.input src in
+                 Js.Opt.map src (fun src ->
+                 src##setAttribute (Js.string "disabled") (Js.string "1")));
+
+               List.iter disable_everything (Dom.list_of_nodeList (src##.childNodes))
+             in
+             Js.Opt.map (Eliom_content.Html5.To_dom.of_element ~%myinput)##.parentNode disable_everything;
+             let enable_everything () =
+               let rec aux src = 
+                 Dom_html.CoerceTo.element src
+                 |> fun a -> Js.Opt.map a (fun src ->
+                   let src = Dom_html.CoerceTo.input src in
+                   Js.Opt.map src (fun src ->
+                     src##removeAttribute (Js.string "disabled")));
+
+                 List.iter aux (Dom.list_of_nodeList (src##.childNodes))
+               in
+               Js.Opt.map (Eliom_content.Html5.To_dom.of_element ~%myinput)##.parentNode aux;
+             in
+             let canceled =
+               let%lwt () = Lwt_js.sleep 20.0 in
+               let () = Js.Unsafe.eval_string "alert('Disconnected from the server')" in
+               enable_everything (); Lwt.return ()
+             in
 
              try
                (* FIXME: ok, we need to make sure this is not garbage collected too quickly,
                 * unfortunately there is no Lwt_main in js *)
                let _ =
                  let%lwt res = get_from_server ~%coservice (~%get_values ()) in
+                 Lwt.cancel canceled;
+                 enable_everything ();
                  match ~%client_callback with
                  | Some f -> Lwt.return (f res)
                  | None -> Lwt.return ()
@@ -147,7 +178,7 @@ module Form(Data: App_stub.DATA) = struct
              with
              | Couldnt_unwrap -> Js.Unsafe.eval_string ("alert('Please fill all the required fields.')")
         ] in
-        Html5.F.div [Html5.F.(Raw.form ~a:[a_onsubmit full_cb] [elt; Raw.input ~a:[a_input_type `Submit] ()])]
+        Html5.F.div [Html5.D.(Raw.form ~a:[a_onsubmit full_cb] [elt; myinput])]
 
 
   let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> unit Lwt.t) -> 'c -> unit -> Widgets.div_content =
