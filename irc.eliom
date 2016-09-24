@@ -138,7 +138,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                            |> React.S.switch
                            |> React.S.map @@ List.map (fun (l, c) -> Env.Data.Objects.get irc_channel_type l, (List.map (Env.Data.Objects.get irc_message_type)) c)
                            |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare j.timestamp i.timestamp) c)
-                           |> Eliom_react.S.Down.of_react
+                           |> Offline.down_of_react
                            |> return)
            in
            let all_messages =
@@ -247,12 +247,12 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
       let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
       let all_irc_ev =
         all_irc_channels
-        |> React.S.map (List.map @@Env.Data.Objects.get irc_channel_type)
-        |> Eliom_react.S.Down.of_react in
+        |> React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type)
+        |> Offline.down_of_react in
 
       let channel_list =
         [%client
-          ~%all_irc_ev
+        Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }]
           |> React.S.map (fun all_chans ->
             all_chans
             |> List.map (fun (l:irc_channel) ->

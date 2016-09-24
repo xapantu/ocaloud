@@ -9,3 +9,6 @@ run: build
 	mkdir -p _run/log/ocaloudcore/
 	mkdir -p _run/data/ocaloudcore/ocsipersist
 	ocsigenserver -c ocaloud.conf -v
+
+clean:
+	rm -rf _build

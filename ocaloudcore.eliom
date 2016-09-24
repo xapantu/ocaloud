@@ -63,6 +63,22 @@ let () =
               Html5.F.(body [p [pcdata "ocaloud v1"]])
            ))
 
+(*
+let manifest =
+  Eliom_registration.Any.register
+    ~service:(Eliom_service.Http.service ~path:["manifest.appcache"] ~get_params:Eliom_parameter.unit ())
+    (fun () () ->
+       let appcache =
+         Format.sprintf
+"CACHE MANIFEST
+# %d
+/
+css/ocaloud.css
+" 0 (*(Int64.to_int @@ Eliom_request_info.get_request_id ())*)
+       in
+       Eliom_registration.String.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=100" empty) (appcache, ""))*)
+
+
 let () = Mimes.register_public "main" main_service
 
 (* let _ = Bep.Main.start_syncing ()*)
@@ -71,4 +87,5 @@ let () = Mimes.register_public "main" main_service
     open Photos
     open Irc
     open Myform
+    open Offline
 ]

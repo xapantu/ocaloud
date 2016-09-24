@@ -34,6 +34,7 @@ module S (M: App_stub.MIMES) = struct
     let open Html5.F in
     return (Eliom_tools.F.html
       ~title:"ocaloud"
+      ~js:[["js"; "app.js"]]
       ~css:[["css";"ocaloud.css"]]
       (body l))
 
@@ -48,6 +49,7 @@ module S (M: App_stub.MIMES) = struct
         l in
     Lwt.return (Eliom_tools.F.html
       ~title:"ocaloud"
+      ~js:[["js"; "app.js"]]
       ~css:[["css";"ocaloud.css"]]
       (body ([sidebar; main_wrapper])))
 
@@ -62,6 +64,7 @@ module S (M: App_stub.MIMES) = struct
         l in
     Lwt.return (Eliom_tools.F.html
       ~title:"ocaloud"
+      ~js:[["js"; "app.js"]]
       ~css:[["css";"ocaloud.css"]]
       (body ([sidebar; main_wrapper])))
 

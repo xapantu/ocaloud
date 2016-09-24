@@ -27,7 +27,7 @@ module Files(E:App_stub.ENV) : App_stub.FILES with type volume = E.Data.volume =
     | Not_found -> raise (Volume_unknown_to_files (E.Data.volume_id n))
 
   let () =
-    E.Config.App.register
+    Eliom_registration.Any.register
       ~service
       (fun (volume_id:string) () ->
          try%lwt
@@ -90,9 +90,11 @@ module Files(E:App_stub.ENV) : App_stub.FILES with type volume = E.Data.volume =
              |> Html5.R.node]
            in
            E.F.main_box_sidebar [Widgets.F.two_panes (Html5.C.node file_list) (Html5.C.node ul)]
+           >>= E.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
          with
          | E.Data.Volume_not_found _ ->
            E.F.main_box [Html5.F.p [Html5.F.pcdata "This volume does not seem to exist."]]
+           >>= E.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
       )
 
   let register_service_for_volume n =
