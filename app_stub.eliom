@@ -96,6 +96,7 @@ module type ENV = sig
      * it gets complicated for string list *)
     type ('a, 'b) params_type
     val string: string -> string -> (string, string) params_type
+    val string_password: string -> string -> (string, string) params_type
     val string_list: string -> 'a list signal -> ('a -> string) -> ('a, string) params_type
     val int: string -> int -> (int, int) params_type
     val bool: string -> bool -> (bool, bool) params_type

@@ -19,7 +19,7 @@ module Dumb_password(E:App_stub.ENV) = struct
   let password_table = (open_table "users":string table)
 
   let main_widget =
-    E.Form.(make (string "username" "" ** string "password" "")
+    E.Form.(make (string "username" "" ** string_password "password" "")
               (fun (user, password) ->
                  try%lwt
                    let%lwt real_password = find password_table user in

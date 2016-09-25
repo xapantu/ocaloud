@@ -95,25 +95,27 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
     Env.Config.App.register
       ~service:account_service
       (fun () () ->
-         let account_list =
-           [%client
-             let open Html5.F in
-             ~%all_accounts_client
-             |> React.S.map (
-               List.map (fun (state, account) ->
-                 let state = match state with
-                   | Connected -> pcdata ": connected"
-                   | Disconnected -> pcdata ": disconnected"
-                   | Connecting -> pcdata ": connecting"
-                 in
-                 li [pcdata account.server; state]
-               )
-             )
-             |> React.S.map Widgets.F.list_view
-             |> Html5.R.node
-           ] |> Html5.C.node
-         in
-         Env.F.main_box_sidebar [account_list; create_account_form (); join_channel_form ()]
+         User.ensure_role "logged" >>=
+         fun () ->
+             let account_list =
+               [%client
+                 let open Html5.F in
+                 ~%all_accounts_client
+                 |> React.S.map (
+                   List.map (fun (state, account) ->
+                     let state = match state with
+                       | Connected -> pcdata ": connected"
+                       | Disconnected -> pcdata ": disconnected"
+                       | Connecting -> pcdata ": connecting"
+                     in
+                     li [pcdata account.server; state]
+                   )
+                 )
+                 |> React.S.map Widgets.F.list_view
+                 |> Html5.R.node
+               ] |> Html5.C.node
+             in
+             Env.F.main_box_sidebar [account_list; create_account_form (); join_channel_form ()]
       )
   
   
@@ -121,28 +123,30 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
     Env.Config.App.register
       ~service
       (fun (account, channelname) () ->
-         if channelname = "all" then
-           let%lwt irc_messages = Env.Data.Objects.get_object_of_type irc_message_type
-           in
-           let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
-           let%lwt all_irc_channels  =
-             all_irc_channels
-             |> Lwt_react.S.map_s @@ Lwt_list.map_s (fun channel_object ->
-               let%lwt channel_messages = Env.Data.Objects.object_get_all_children channel_object irc_message_type in
-               Lwt_react.S.map (fun msgs ->
-                 channel_object, msgs) channel_messages
-               |> return
-             )
-             >>= (fun s -> s
-                           |> React.S.map @@ React.S.merge (fun l s -> s :: l) []
-                           |> React.S.switch
-                           |> React.S.map @@ List.map (fun (l, c) -> Env.Data.Objects.get irc_channel_type l, (List.map (Env.Data.Objects.get irc_message_type)) c)
-                           |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare j.timestamp i.timestamp) c)
-                           |> Offline.down_of_react
-                           |> return)
-           in
-           let all_messages =
-             [%client
+         User.ensure_role "logged" >>=
+         fun () -> begin
+           if channelname = "all" then
+             let%lwt irc_messages = Env.Data.Objects.get_object_of_type irc_message_type
+             in
+             let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
+             let%lwt all_irc_channels  =
+               all_irc_channels
+               |> Lwt_react.S.map_s @@ Lwt_list.map_s (fun channel_object ->
+                 let%lwt channel_messages = Env.Data.Objects.object_get_all_children channel_object irc_message_type in
+                 Lwt_react.S.map (fun msgs ->
+                   channel_object, msgs) channel_messages
+                 |> return
+               )
+               >>= (fun s -> s
+                             |> React.S.map @@ React.S.merge (fun l s -> s :: l) []
+                             |> React.S.switch
+                             |> React.S.map @@ List.map (fun (l, c) -> Env.Data.Objects.get irc_channel_type l, (List.map (Env.Data.Objects.get irc_message_type)) c)
+                             |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare j.timestamp i.timestamp) c)
+                             |> Offline.down_of_react
+                             |> return)
+             in
+             let all_messages =
+               [%client
                ~%all_irc_channels
                |> React.S.map (List.map (fun (l, c) ->
                  let all_messages = 
@@ -157,66 +161,66 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                |> React.S.map (fun l ->
                  Html5.F.ul l)
                |> Html5.R.node
-             ] |> Html5.C.node
-           in
-           Env.F.main_box_sidebar [all_messages]
-         else
-           let channel = List.find (fun l -> (Env.Data.Objects.get irc_channel_type l).name = channelname) (React.S.value all_channels) in
-           let%lwt account = Env.Data.Objects.get_parent irc_account_type channel in
-           let%lwt account_state =
-             Env.Data.Objects.object_get_all_children account irc_connected_type
-             >|= React.S.map (fun states ->
-               try
-                 List.map (Env.Data.Objects.get irc_connected_type) states
-                 |> List.sort (fun a b -> compare (b:irc_connected).time a.time)
-                 |> List.hd
-                 |> fun c -> c.state
-               with
-               | Not_found | Failure "hd" -> Disconnected
-             )
-             >|= Eliom_react.S.Down.of_react
-           in
-           let%lwt user_list =
-             Env.Data.Objects.object_get_all_children channel irc_user_list_type
-             >|= React.S.map (fun users ->
-               try
-                 List.map (Env.Data.Objects.get irc_user_list_type) users
-                 |> List.sort (fun a b -> compare (b:irc_user_list).time a.time)
-                 |> List.hd
-                 |> fun c -> c.users
-               with
-               | Not_found | Failure "hd" -> []
-             )
-             >|= Eliom_react.S.Down.of_react
-           in
-           let h = 
-             [%client
-             React.S.map (function
-               | Disconnected ->
-                 Html5.F.h1 [pcdata ~%channelname; pcdata "disconnected"]
-               | Connecting ->
-                 Html5.F.h1 [pcdata ~%channelname; pcdata "connecting"]
-               | Connected ->
-                 Html5.F.h1 [pcdata ~%channelname; pcdata "connected"] 
-             ) ~%account_state
-             |> Html5.R.node
-             ] |> Html5.C.node in
-           let userlist =
-             [%client
-             React.S.map (fun l ->
-               Html5.F.ul (List.map (fun u ->
-                 li [pcdata u]) l)
-             ) ~%user_list
-             |> Html5.R.node
-             ] |> Html5.C.node in
-           let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
-           let irc_messages = irc_messages
-                              |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
-                              |> React.S.map (List.sort (fun i j -> compare i.timestamp j.timestamp))
-                              |> Eliom_react.S.Down.of_react
-           in
-           let messages =
-             [%client
+               ] |> Html5.C.node
+             in
+             Env.F.main_box_sidebar [all_messages]
+           else
+             let channel = List.find (fun l -> (Env.Data.Objects.get irc_channel_type l).name = channelname) (React.S.value all_channels) in
+             let%lwt account = Env.Data.Objects.get_parent irc_account_type channel in
+             let%lwt account_state =
+               Env.Data.Objects.object_get_all_children account irc_connected_type
+               >|= React.S.map (fun states ->
+                 try
+                   List.map (Env.Data.Objects.get irc_connected_type) states
+                   |> List.sort (fun a b -> compare (b:irc_connected).time a.time)
+                   |> List.hd
+                   |> fun c -> c.state
+                 with
+                 | Not_found | Failure "hd" -> Disconnected
+               )
+               >|= Eliom_react.S.Down.of_react
+             in
+             let%lwt user_list =
+               Env.Data.Objects.object_get_all_children channel irc_user_list_type
+               >|= React.S.map (fun users ->
+                 try
+                   List.map (Env.Data.Objects.get irc_user_list_type) users
+                   |> List.sort (fun a b -> compare (b:irc_user_list).time a.time)
+                   |> List.hd
+                   |> fun c -> c.users
+                 with
+                 | Not_found | Failure "hd" -> []
+               )
+               >|= Eliom_react.S.Down.of_react
+             in
+             let h = 
+               [%client
+               React.S.map (function
+                 | Disconnected ->
+                   Html5.F.h1 [pcdata ~%channelname; pcdata "disconnected"]
+                 | Connecting ->
+                   Html5.F.h1 [pcdata ~%channelname; pcdata "connecting"]
+                 | Connected ->
+                   Html5.F.h1 [pcdata ~%channelname; pcdata "connected"] 
+               ) ~%account_state
+               |> Html5.R.node
+               ] |> Html5.C.node in
+             let userlist =
+               [%client
+               React.S.map (fun l ->
+                 Html5.F.ul (List.map (fun u ->
+                   li [pcdata u]) l)
+               ) ~%user_list
+               |> Html5.R.node
+               ] |> Html5.C.node in
+             let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
+             let irc_messages = irc_messages
+                                |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
+                                |> React.S.map (List.sort (fun i j -> compare i.timestamp j.timestamp))
+                                |> Eliom_react.S.Down.of_react
+             in
+             let messages =
+               [%client
                let message_div =
                  ~%irc_messages
                  |> React.S.map (List.map (fun l ->
@@ -236,9 +240,10 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                )
                |> Lwt_react.S.keep;
                message_div
-             ] |> Html5.C.node
-           in
-           Env.F.flex_box_sidebar [h; Html5.D.(div ~a:[a_class ["irc-user-message"]] [userlist; messages]); Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
+               ] |> Html5.C.node
+             in
+             Env.F.flex_box_sidebar [h; Html5.D.(div ~a:[a_class ["irc-user-message"]] [userlist; messages]); Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
+         end
       )
   
   let () =
