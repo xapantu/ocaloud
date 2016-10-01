@@ -43,6 +43,7 @@
 	display:flex;
 	flex-direction:column;
 	overflow:hidden;
+	font-size:0.85em;
 }
 .irc-user-message > ul li {
 display:block;
