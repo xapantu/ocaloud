@@ -132,7 +132,7 @@ module Form(Data: App_stub.DATA) = struct
       in
       fun () ->
         let elt, (get_values:(unit -> 'b) Eliom_lib.client_value) = build_form params in
-        let myinput = Html5.D.(input ~a:[a_input_type `Submit] ()) in
+        let myinput = Html5.D.(Form.input ~input_type:`Submit ~value:"send" Form.string) in
         let full_cb = [%client fun e ->
              Dom.preventDefault e;
 
@@ -258,7 +258,7 @@ module Form(Data: App_stub.DATA) = struct
              with
              | Couldnt_unwrap -> Js.Unsafe.eval_string ("alert('Please fill all the required fields.')")
         ] in
-        Html5.F.div [Html5.F.(Raw.form ~a:[a_onsubmit full_cb] [elt; Raw.input ~a:[a_input_type `Submit] ()])]
+        Html5.F.div [Html5.F.(Raw.form ~a:[a_onsubmit full_cb] [elt; Form.input ~input_type:`Submit ~value:"send" Form.string])]
 
       
 

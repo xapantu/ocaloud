@@ -90,6 +90,7 @@ module type ENV = sig
     val main_box : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
     val main_box_sidebar : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
     val flex_box_sidebar : (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
+    val make_page_redirect: string -> (div_content list) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
   end
   module Form : sig
     (* the first one is the actual datatype, the second one the serialized one - they are equal for simple datatype,
@@ -116,5 +117,9 @@ end
 module type ENVBASE = sig
   include ENV
   module Files : FILES with type volume = Data.volume
+  module Permissions : sig
+    val ensure_role: string -> (unit -> Html5_types.html Eliom_content.Html5.elt Lwt.t) -> Html5_types.html Eliom_content.Html5.elt Lwt.t
+  end
+  val welcome_service: unit_service
 end
 

@@ -36,17 +36,20 @@ module Env = struct
   module Form = Myform.Form(Data)
 end
 
+module Welcome = Welcome(Env)
+
 module Files = Files(Env)
+module Permissions = User.Permissions(Env)
 
 module EnvBase = struct
   include Env
   module Files = Files
+  module Permissions = Permissions
+  let welcome_service = Welcome.main_service
 end
 
 module Photos = Photos(EnvBase)
 module Irc  = IrcApp(EnvBase)
-
-module Welcome = Welcome(Env)
 
 let _ = Data.load_volumes ()
 

@@ -95,8 +95,8 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
     Env.Config.App.register
       ~service:account_service
       (fun () () ->
-         User.ensure_role "logged" >>=
-         fun () ->
+         Env.Permissions.ensure_role "logged"
+         begin fun () ->
              let account_list =
                [%client
                  let open Html5.F in
@@ -116,6 +116,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                ] |> Html5.C.node
              in
              Env.F.main_box_sidebar [account_list; create_account_form (); join_channel_form ()]
+         end
       )
   
   
@@ -123,7 +124,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
     Env.Config.App.register
       ~service
       (fun (account, channelname) () ->
-         User.ensure_role "logged" >>=
+         Env.Permissions.ensure_role "logged" begin
          fun () -> begin
            if channelname = "all" then
              let%lwt irc_messages = Env.Data.Objects.get_object_of_type irc_message_type
@@ -197,11 +198,11 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                [%client
                React.S.map (function
                  | Disconnected ->
-                   Html5.F.h1 [pcdata ~%channelname; pcdata "disconnected"]
+                   Html5.F.h1 [pcdata ~%channelname; pcdata " (disconnected)"]
                  | Connecting ->
-                   Html5.F.h1 [pcdata ~%channelname; pcdata "connecting"]
+                   Html5.F.h1 [pcdata ~%channelname; pcdata " (connecting)"]
                  | Connected ->
-                   Html5.F.h1 [pcdata ~%channelname; pcdata "connected"] 
+                   Html5.F.h1 [pcdata ~%channelname; pcdata " (connected)"] 
                ) ~%account_state
                |> Html5.R.node
                ] |> Html5.C.node in
@@ -224,8 +225,8 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                let message_div =
                  ~%irc_messages
                  |> React.S.map (List.map (fun l ->
-                   let t = new%js Js.date_fromTimeValue (l.timestamp *. 1000.) in
-                   Html5.F.(tr [td [pcdata (Js.to_string t##toLocaleTimeString)]; td [pcdata " "; pcdata (extract_author l.author)]; td [pcdata l.content]])
+                   let t = Js.Unsafe.eval_string (Format.sprintf "(new Date(%f)).toLocaleFormat('%%H:%%M')" (l.timestamp*.1000.) ) in
+                   Html5.F.(tr [td [pcdata (Js.to_string t)]; td [pcdata " "; pcdata (extract_author l.author)]; td [pcdata l.content]])
                  ))
                  |> React.S.map Html5.F.table
                  |> Html5.R.node
@@ -243,6 +244,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                ] |> Html5.C.node
              in
              Env.F.flex_box_sidebar [h; Html5.D.(div ~a:[a_class ["irc-user-message"]] [userlist; messages]); Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
+         end
          end
       )
   

@@ -13,7 +13,7 @@ module Welcome(E:App_stub.ENV) = struct
   let main_service =
     Eliom_service.App.service ~path:[] ~get_params:Eliom_parameter.unit ()
 
-  let () = Eliom_registration.Any.register
+  let () = E.Config.App.register
       ~service:main_service
       (fun () () ->
          let all_public = E.Mimes.get_all_public_services ()
@@ -35,14 +35,7 @@ module Welcome(E:App_stub.ENV) = struct
                  Html5.F.(div [~%login_widget; span [pcdata "unlogged"]]) end
              |> Html5.R.node
            ] |> Html5.C.node in
-         E.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
-           (Eliom_tools.F.html
-              ~js:[["js"; "app.js"]]
-              ~title:"ocaloud"
-              ~css:[["css";"ocaloud.css"]]
-              Html5.F.(body (
-                [logged_mention; div all_public]
-              )))
+         E.F.main_box [logged_mention; div all_public]
       )
 end
 

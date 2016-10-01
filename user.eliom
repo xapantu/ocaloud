@@ -88,3 +88,14 @@ let ensure_login () = let _ = get_login () in return ()
 let login_signal () =
     fst (unwrap_signal ())
 
+
+module Permissions(Env:App_stub.ENV) = struct
+  let ensure_role a f = 
+    try
+      let%lwt () = ensure_role a in
+      f ()
+    with
+    | Not_allowed ->
+      Env.F.make_page_redirect "/" []
+
+end
