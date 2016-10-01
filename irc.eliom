@@ -74,7 +74,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let send_message_form =
     Env.Form.(make_parametrized (string "content" "") (string_list "channel" all_channels Env.Data.Objects.get_id_as_string)
                 (fun channel content ->
-                   Irc_engine.send_to_channel channel (Irc_engine.new_message content "me")  ) None )
+                   Irc_engine.send_to_channel channel (Irc_engine.new_message content "me")  ) (Some ([%client fun _ -> App_stub.Clear])) )
 
   let join_channel_form  =
     let get_server_name = (fun l ->

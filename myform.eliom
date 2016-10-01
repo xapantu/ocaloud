@@ -1,3 +1,9 @@
+(** Provides very high level form creation, with various callbacks (on the server and on the client),
+ * as well as ready to use effects on the form (indicates that a field is wrongly filled, or just
+ * clear it). **)
+
+
+(* This file is named Myform and not Form because of weird namespace conflicts with Eliom. *)
 [%%shared
     open Eliom_content
     open Eliom_lib
@@ -8,6 +14,7 @@
                       Eliom_service.registrable,
                       'b Eliom_service.ocaml_service) Eliom_service.service
     type form_content = Html5_types.form_content_fun Eliom_content.Html5.elt
+
 ]
 [%%client
     open Lwt
@@ -32,6 +39,7 @@ module Form(Data: App_stub.DATA) = struct
     | TProd : ( ('a, 'aa) params_type * ('b, 'bb) params_type) -> ('a * 'b, 'aa * 'bb) params_type
     | TAtom : (string * 'a * ('a, 'b) atom) -> ('a, 'b) params_type
     | TAtomOpt : (string * 'a option * ('a, 'b) atom) -> ('a, 'b) params_type
+
 
   let int (n : string) def = TAtom (n,def, TInt)
 
@@ -73,7 +81,7 @@ module Form(Data: App_stub.DATA) = struct
     | TAtomOpt(_) -> failwith "unhandled optional field"
     | TAtom(n, _, TNone) -> Obj.magic @@ (Eliom_parameter.unit, fun i -> i)
 
-  let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> 'e Lwt.t) -> ('e -> unit) Eliom_lib.client_value option -> 'c -> unit -> Widgets.div_content =
+  let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> 'e Lwt.t) -> ('e -> App_stub.action_on_form) Eliom_lib.client_value option -> 'c -> unit -> Widgets.div_content =
     fun params params_c callback client_callback ->
       let eliom_params, (translator: ('b * 'd) -> ('a * 'c)) = to_eliom (TProd(params, params_c)) in
       let coservice: ('b * 'd , 'f) cocaml = service_stub eliom_params (fun a ->
@@ -152,6 +160,19 @@ module Form(Data: App_stub.DATA) = struct
         let myinput = Html5.D.(Form.input ~input_type:`Submit ~value:"send" Form.string) in
         let full_cb = [%client fun e ->
              Dom.preventDefault e;
+             
+             let clear_everything () =
+               let rec aux src = 
+                 Dom_html.CoerceTo.element src
+                 |> fun a -> Js.Opt.map a (fun a ->
+                   Dom_html.CoerceTo.form a
+                 |> fun a -> Js.Opt.map a (fun a ->
+                   a##reset));
+
+                 List.iter aux (Dom.list_of_nodeList (src##.childNodes))
+               in
+               Js.Opt.map (Eliom_content.Html5.To_dom.of_element ~%myinput)##.parentNode aux; ()
+             in
 
              let rec disable_everything src =
                Dom_html.CoerceTo.element src
@@ -189,7 +210,12 @@ module Form(Data: App_stub.DATA) = struct
                  Lwt.cancel canceled;
                  enable_everything ();
                  match ~%client_callback with
-                 | Some f -> Lwt.return (f res)
+                 | Some f ->
+                   begin match (f res) with
+                     | App_stub.Clear ->
+                       Lwt.return (clear_everything ())
+                     | App_stub.Nothing -> Lwt.return ()
+                   end
                  | None -> Lwt.return ()
                in ()
              with
@@ -197,7 +223,7 @@ module Form(Data: App_stub.DATA) = struct
         ] in
         Html5.F.div [Html5.D.(Raw.form ~a:[a_onsubmit full_cb] [elt; myinput])]
   
-  let make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> unit) Eliom_lib.client_value option -> unit -> Widgets.div_content =
+  let make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> App_stub.action_on_form) Eliom_lib.client_value option -> unit -> Widgets.div_content =
     fun params callback client_cb ->
       make_parametrized params (TAtom("none", (), TNone)) (fun () -> callback) client_cb ()
 

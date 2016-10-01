@@ -2,6 +2,8 @@ open Lwt_react
 
 [%%shared
 type div_content = Html5_types.div_content_fun Eliom_content.Html5.elt
+type action_on_form = Clear | Nothing
+
 ]
 
 module type CONFIG = sig
@@ -102,9 +104,9 @@ module type ENV = sig
     val int: string -> int -> (int, int) params_type
     val bool: string -> bool -> (bool, bool) params_type
     val ( ** ): ('a, 'b) params_type -> ('c, 'd) params_type -> ('a * 'c, 'b * 'd) params_type
-    val make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> unit) Eliom_lib.client_value option -> unit -> div_content
+    val make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> action_on_form) Eliom_lib.client_value option -> unit -> div_content
     (** a parametrized form is a form whose some fields are hidden *)
-    val make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type ->  ('c -> 'a -> 'e Lwt.t) -> ('e -> unit) Eliom_lib.client_value option -> 'c ->  unit -> div_content
+    val make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type ->  ('c -> 'a -> 'e Lwt.t) -> ('e -> action_on_form) Eliom_lib.client_value option -> 'c ->  unit -> div_content
   end
 end
 
