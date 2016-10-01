@@ -6,6 +6,11 @@
 
     open Irc_engine
 
+    let rec list_truncate n = function
+      | [] -> []
+      | t::q -> if n <= 0 then []
+        else t :: (list_truncate (n-1) q)
+
 ]
 
 [%%client
@@ -143,6 +148,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                              |> React.S.switch
                              |> React.S.map @@ List.map (fun (l, c) -> Env.Data.Objects.get irc_channel_type l, (List.map (Env.Data.Objects.get irc_message_type)) c)
                              |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare j.timestamp i.timestamp) c)
+                             |> React.S.map @@ list_truncate 100
                              |> Offline.down_of_react
                              |> return)
              in
@@ -217,7 +223,9 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
              let irc_messages = irc_messages
                                 |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
-                                |> React.S.map (List.sort (fun i j -> compare i.timestamp j.timestamp))
+                                |> React.S.map (List.sort (fun i j -> compare j.timestamp i.timestamp))
+                                |> React.S.map @@ list_truncate 100
+                                |> React.S.map @@ List.rev
                                 |> Eliom_react.S.Down.of_react
              in
              let messages =

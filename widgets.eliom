@@ -48,8 +48,8 @@ module S (M: App_stub.MIMES) = struct
       (body l))
 
   let top_bar () =
-    let button_menu = Html5.D.Raw.a [pcdata "<"] in
-    let button_back = Html5.D.Raw.a [pcdata ">"] in
+    let button_menu = Html5.D.Raw.a [pcdata " "] in
+    let button_back = Html5.D.Raw.a [pcdata " "] in
     let _ =	[%client
       let a = Eliom_content.Html5.To_dom.of_a ~%button_back in
       let menus = Dom_html.getElementById "main" in

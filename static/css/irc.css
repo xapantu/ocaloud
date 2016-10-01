@@ -37,11 +37,31 @@
 	flex-grow:0;
 }
 
+@media only screen and (max-device-width: 800px) { 
+.irc-user-message {
+	background-color: rgba(255, 255, 255, 0.4);
+	display:flex;
+	flex-direction:column;
+	overflow:hidden;
+}
+.irc-user-message > ul li {
+display:block;
+float:left;
+clear:none;
+margin: 0.2em;
+}
+.irc-view {
+clear:both;
+overflow:scroll;
+}
+}
+@media only screen and (min-device-width: 800px) { 
 .irc-user-message {
     display: flex;
     flex-direction: row;
     overflow: hidden;
 	background-color: rgba(255, 255, 255, 0.4);
+}
 }
 
 .irc-user-message > ul {

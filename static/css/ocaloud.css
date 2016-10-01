@@ -39,4 +39,7 @@ label > input[type="checkbox"] {
 input[type="text"]:focus {
 	border-bottom: 1px solid blue;
 }
-
+.flex-wrapper {
+	display: flex;
+	flex-direction: column;
+}
