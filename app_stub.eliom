@@ -104,7 +104,7 @@ module type ENV = sig
     val ( ** ): ('a, 'b) params_type -> ('c, 'd) params_type -> ('a * 'c, 'b * 'd) params_type
     val make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> unit) Eliom_lib.client_value option -> unit -> div_content
     (** a parametrized form is a form whose some fields are hidden *)
-    val make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> unit Lwt.t) -> 'c -> unit -> div_content
+    val make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type ->  ('c -> 'a -> 'e Lwt.t) -> ('e -> unit) Eliom_lib.client_value option -> 'c ->  unit -> div_content
   end
 end
 

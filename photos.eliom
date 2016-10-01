@@ -67,7 +67,7 @@ module Photos(Env:App_stub.ENVBASE) = struct
       (fun album content ->
         Ocsigen_messages.errlog (Format.sprintf "setting content %s for album %s" (Env.Data.volume_id album) content);
          return ()
-      ))
+      ) None)
              
   let album_load_from_id album =
     try
