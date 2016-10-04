@@ -233,7 +233,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                let message_div =
                  ~%irc_messages
                  |> React.S.map (List.map (fun l ->
-                   let t = Js.Unsafe.eval_string (Format.sprintf "(new Date(%f)).toLocaleFormat('%%H:%%M')" (l.timestamp*.1000.) ) in
+                   let t = Js.Unsafe.eval_string (Format.sprintf "(new Date(%f)).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})" (l.timestamp*.1000.) ) in
                    Html5.F.(tr [td [pcdata (Js.to_string t)]; td [pcdata " "; pcdata (extract_author l.author)]; td [pcdata l.content]])
                  ))
                  |> React.S.map Html5.F.table
@@ -267,8 +267,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
 
       let channel_list =
         [%client
-        (*Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }]*)
-          ~%all_irc_ev
+        Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }]
           |> React.S.map (fun all_chans ->
             all_chans
             |> List.map (fun (l:irc_channel) ->

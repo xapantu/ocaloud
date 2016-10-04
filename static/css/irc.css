@@ -1,6 +1,5 @@
 .irc-view {
 	overflow-y:scroll;
-	flex-grow: 1;
 }
 
 .irc-view table {
@@ -25,6 +24,7 @@
 }
 
 .irc-entry > div > form {
+	display:-wekbit-flex;
 	display:flex;
 	flex-direction:row;
 }
@@ -40,6 +40,7 @@
 @media only screen and (max-device-width: 800px) { 
 .irc-user-message {
 	background-color: rgba(255, 255, 255, 0.4);
+	display:-wekbit-flex;
 	display:flex;
 	flex-direction:column;
 	overflow:hidden;
@@ -72,3 +73,17 @@ overflow:scroll;
 	min-width:100px;
 	border-right: 1px solid gray;
 }
+
+/** hack for old webkit **/
+.irc-entry {
+	flex: 0 0 2.5em;
+}
+
+.flex-wrapper > h1 {
+	flex: 0 0 1.2em;
+}
+
+.irc-user-message > ul {
+	flex: 0 0 1em;
+	overflow:visible;
+	}

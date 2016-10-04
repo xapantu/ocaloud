@@ -3,9 +3,10 @@
 @import url(/css/sidebar.css);
 @import url(/css/photos.css);
 @import url(/css/irc.css);
+@import url(https://code.cdn.mozilla.net/fonts/fira.css);
 
 * {
-    font-family: Cantarell, sans-serif;
+    font-family: "Fira Sans", Cantarell, sans-serif;
 }
 
 body {
@@ -39,6 +40,7 @@ input[type="text"]:focus {
 	border-bottom: 1px solid blue;
 }
 .flex-wrapper {
+	display: -webkit-flex;
 	display: flex;
 	flex-direction: column;
 }

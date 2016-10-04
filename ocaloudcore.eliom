@@ -93,4 +93,5 @@ let () = Mimes.register_public "main" main_service
     open Myform
     open Offline
     open Welcome
+    open Dumb_password
 ]
