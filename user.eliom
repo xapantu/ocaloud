@@ -88,6 +88,12 @@ let ensure_login () = let _ = get_login () in return ()
 let login_signal () =
     fst (unwrap_signal ())
 
+let is_logged () =
+  try
+    ignore (get_login ()); true
+  with
+  | Not_logged_in -> false
+
 
 module Permissions(Env:App_stub.ENV) = struct
   let ensure_role a f = 

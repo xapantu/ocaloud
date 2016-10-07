@@ -259,15 +259,16 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let () =
     Env.Mimes.register_sidebar "irc" (fun () ->
 
-      let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
-      let all_irc_ev =
-        all_irc_channels
-        |> React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type)
-        |> Offline.down_of_react in
+      if User.is_logged () then
+        let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
+        let all_irc_ev =
+          all_irc_channels
+          |> React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type)
+          |> Offline.down_of_react in
 
-      let channel_list =
-        [%client
-        Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }]
+        let channel_list =
+          [%client
+          Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }]
           |> React.S.map (fun all_chans ->
             all_chans
             |> List.map (fun (l:irc_channel) ->
@@ -279,9 +280,13 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
             |> List.rev
             |> Widgets.F.list_view)
           |> Html5.R.node
-        ] |> Html5.C.node
-      in
-      let h:Html5_types.div_content_fun Eliom_content.Html5.F.elt = Html5.F.(h1 [pcdata "irc"]) in
-      Lwt.return Html5.F.(div [h; channel_list]))
+          ] |> Html5.C.node
+        in
+        let h:Html5_types.div_content_fun Eliom_content.Html5.F.elt = Html5.F.(h1 [pcdata "irc"]) in
+        Lwt.return Html5.F.(div [h; channel_list])
+      else
+        Lwt.return Html5.F.(div [])
+    );
+    Env.Mimes.register_public "irc" account_service; ()
 
 end

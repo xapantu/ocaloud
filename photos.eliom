@@ -121,28 +121,22 @@ module Photos(Env:App_stub.ENVBASE) = struct
         Lwt.return ()
       ]
     in
-    Eliom_registration.Any.register
+    Env.Config.App.register
       ~service:main_service
       (fun (album_id) () ->
          try%lwt
-           let path = Eliom_request_info.get_current_full_path () in
-           let _ = [%client
-              Eliom_client.init_client_app ~port:8081 ~hostname:"localhost" ~full_path:(~%path) ()
-              ] in
            let album = album_from_id album_id in
            let files_service = Env.Files.service_for_volume album.volume in
            let images_list = Eliom_react.S.Down.of_react album.image_list in
            let image_grid_view = create_display_view files_service images_list in
            let _ = resize_client_on_load () in
-           let%lwt page = Env.F.main_box_sidebar [album.description; image_grid_view; edit_album_form album.volume ()] in
-         Env.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty) page
+           Env.F.main_box_sidebar [album.description; image_grid_view; edit_album_form album.volume ()]
          with
          | Album_does_not_exist(_) ->
            Env.F.main_box_sidebar
              Html5.F.(
                [p [pcdata "This album does not seem to exist. Please make sure the directory exists and has an index.md file."]]
-             ) >>=
-         Env.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
+             )
 
       )
 

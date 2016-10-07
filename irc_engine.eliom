@@ -142,9 +142,26 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
             let author = extract_author author in
             Lwt_list.iter_s (fun i ->
               let%lwt target_channel = get_channel account i in
-              let%lwt msg_obj = save_message (new_message (Format.sprintf "%s left." author) "") in
+              let%lwt msg_obj = save_message (new_message (Format.sprintf "%s left. (%s)" author msg) "") in
               let%lwt () = link_to_parent target_channel msg_obj in
               rm_user i author) channels
+          | `Ok ({ command = QUIT (msg) ; prefix = Some author; } as e)->
+            let author = extract_author author in
+            Hashtbl.fold (fun i _ l ->
+              let%lwt () = l in
+              let%lwt target_channel = get_channel account i in
+              let%lwt msg_obj = save_message (new_message (Format.sprintf "%s quit. (%s)" author msg) "") in
+              let%lwt () = link_to_parent target_channel msg_obj in
+              rm_user i author) users Lwt.return_unit
+          | `Ok ({ command = NICK (new_name) ; prefix = Some author; } as e)->
+            let author = extract_author author in
+            Hashtbl.fold (fun i _ l ->
+              let%lwt () = l in
+              let%lwt target_channel = get_channel account i in
+              let%lwt msg_obj = save_message (new_message (Format.sprintf "%s is now known as %s." author new_name) "") in
+              let%lwt () = link_to_parent target_channel msg_obj in
+              let%lwt () = rm_user i author in
+              add_user i new_name) users Lwt.return_unit
           | `Ok ({ command = JOIN (channels, _) ; prefix = Some author; } as e)->
             let author = extract_author author in
             if author <> nick then
