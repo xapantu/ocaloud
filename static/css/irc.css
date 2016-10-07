@@ -87,3 +87,41 @@ overflow:scroll;
 	flex: 0 0 1em;
 	overflow:visible;
 	}
+
+
+
+
+
+.irc-view > div > div {
+  clear:both;
+	display:flex;
+	flex-direction:row;
+	
+}
+.irc-view > div > div > span {
+	float: left;
+	margin:0.4em;
+	display: block;
+	
+	padding:0.4em;
+}
+.irc-view > div > div > span:nth-child(1) {
+  color:darkgrey;
+	font-size:0.9em;
+	margin-top:auto;
+	
+}
+
+.irc-view > div > div > span:nth-child(2) {
+  flex-grow:1;
+	text-align:right;
+	margin-top:auto;
+	
+}
+.irc-view > div > div > span:nth-child(3) {
+	word-wrap:break-word;
+	overflow:hidden;
+	border-radius:0.4em;
+	background-color:#31398f;
+	color:white;
+}

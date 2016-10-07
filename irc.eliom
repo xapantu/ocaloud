@@ -234,9 +234,9 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  ~%irc_messages
                  |> React.S.map (List.map (fun l ->
                    let t = Js.Unsafe.eval_string (Format.sprintf "(new Date(%f)).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})" (l.timestamp*.1000.) ) in
-                   Html5.F.(tr [td [pcdata (Js.to_string t)]; td [pcdata " "; pcdata (extract_author l.author)]; td [pcdata l.content]])
+                   Html5.F.(div [span [pcdata (Js.to_string t)]; span [pcdata " "; pcdata (extract_author l.author)]; span [pcdata l.content]])
                  ))
-                 |> React.S.map Html5.F.table
+                 |> React.S.map Html5.F.div
                  |> Html5.R.node
                  |> fun a -> Html5.D.div ~a:[Html5.D.a_class ["irc-view"]] [a]
                in

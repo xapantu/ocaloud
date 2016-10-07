@@ -125,6 +125,10 @@ module Photos(Env:App_stub.ENVBASE) = struct
       ~service:main_service
       (fun (album_id) () ->
          try%lwt
+           let path = Eliom_request_info.get_current_full_path () in
+           let _ = [%client
+              Eliom_client.init_client_app ~port:8081 ~hostname:"localhost" ~full_path:(~%path) ()
+              ] in
            let album = album_from_id album_id in
            let files_service = Env.Files.service_for_volume album.volume in
            let images_list = Eliom_react.S.Down.of_react album.image_list in
