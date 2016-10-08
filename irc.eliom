@@ -221,6 +221,12 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  return (div##.scrollTop := (div##.scrollHeight));
                )
                |> Lwt_react.S.keep;
+                 Lwt.async (fun () ->
+                   Lwt_js_events.onresizes (fun _ _ ->
+                     let div = Eliom_content.Html5.To_dom.of_div message_div in
+                     return (div##.scrollTop := (div##.scrollHeight));
+                   )
+               );
                message_div
                ] |> Html5.C.node
              in
