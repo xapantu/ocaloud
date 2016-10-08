@@ -2,7 +2,7 @@ let down_of_react = Eliom_react.S.Down.of_react
 
 let time_update_signal, do_time_update = React.S.create 0.0
 
-let offline_time = 5.
+let offline_time = 60.
 
 let _ =
   let t = Unix.time () in
