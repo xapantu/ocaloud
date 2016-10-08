@@ -1,5 +1,6 @@
 .irc-view {
 	overflow-y:scroll;
+	flex-grow:1;
 }
 
 .irc-view table {
