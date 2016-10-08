@@ -130,48 +130,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
       ~service
       (fun (account, channelname) () ->
          Env.Permissions.ensure_role "logged" begin
-         fun () -> begin
-           if channelname = "all" then
-             let%lwt irc_messages = Env.Data.Objects.get_object_of_type irc_message_type
-             in
-             let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
-             let%lwt all_irc_channels  =
-               all_irc_channels
-               |> Lwt_react.S.map_s @@ Lwt_list.map_s (fun channel_object ->
-                 let%lwt channel_messages = Env.Data.Objects.object_get_all_children channel_object irc_message_type in
-                 Lwt_react.S.map (fun msgs ->
-                   channel_object, msgs) channel_messages
-                 |> return
-               )
-               >>= (fun s -> s
-                             |> React.S.map @@ React.S.merge (fun l s -> s :: l) []
-                             |> React.S.switch
-                             |> React.S.map @@ List.map (fun (l, c) -> Env.Data.Objects.get irc_channel_type l, (List.map (Env.Data.Objects.get irc_message_type)) c)
-                             |> React.S.map @@ List.map (fun (l, c) -> l, List.sort (fun i j -> compare j.timestamp i.timestamp) c)
-                             |> React.S.map @@ list_truncate 100
-                             |> Offline.down_of_react
-                             |> return)
-             in
-             let all_messages =
-               [%client
-               ~%all_irc_channels
-               |> React.S.map (List.map (fun (l, c) ->
-                 let all_messages = 
-                   c
-                   |> List.map (fun l ->
-                     Html5.F.(li [pcdata l.author; pcdata ": "; pcdata l.content])
-                   )
-                   |> Html5.F.ul
-                 in
-                 Html5.F.(li [h1 [pcdata l.name]; all_messages])
-               ))
-               |> React.S.map (fun l ->
-                 Html5.F.ul l)
-               |> Html5.R.node
-               ] |> Html5.C.node
-             in
-             Env.F.main_box_sidebar [all_messages]
-           else
+           fun () ->
              let channel = List.find (fun l -> (Env.Data.Objects.get irc_channel_type l).name = channelname) (React.S.value all_channels) in
              let%lwt account = Env.Data.Objects.get_parent irc_account_type channel in
              let%lwt account_state =
@@ -225,7 +184,20 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                                 |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
                                 |> React.S.map (List.sort (fun i j -> compare j.timestamp i.timestamp))
                                 |> React.S.map @@ list_truncate 100
-                                |> React.S.map @@ List.rev
+                                |> React.S.map (fun l ->
+                                  match l with
+                                  | t::q ->
+                                    let i, l = List.fold_left (fun (old_i, l) i ->
+                                      if abs_float (old_i.timestamp -. i.timestamp) < 60. && old_i.author = i.author then
+                                        let i = { i with content = old_i.content ^ "\n" ^ i.content } in
+                                        i, l
+                                      else
+                                        i, (old_i::l)
+                                    ) (t, []) q
+                                    in
+                                    i::l
+                                  | [] -> []
+                                )
                                 |> Eliom_react.S.Down.of_react
              in
              let messages =
@@ -234,7 +206,8 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  ~%irc_messages
                  |> React.S.map (List.map (fun l ->
                    let t = Js.Unsafe.eval_string (Format.sprintf "(new Date(%f)).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})" (l.timestamp*.1000.) ) in
-                   Html5.F.(div [span [pcdata (Js.to_string t)]; span [pcdata " "; pcdata (extract_author l.author)]; span [pcdata l.content]])
+                   let content = Irc_engine.split_on_char '\n' l.content |> List.fold_left (fun l a -> Html5.F.pcdata a:: Html5.F.br () :: l) [] in
+                   Html5.F.(div [span [pcdata (Js.to_string t)]; span [pcdata " "; pcdata (extract_author l.author)]; span content])
                  ))
                  |> React.S.map Html5.F.div
                  |> Html5.R.node
@@ -252,7 +225,6 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                ] |> Html5.C.node
              in
              Env.F.flex_box_sidebar [h; Html5.D.(div ~a:[a_class ["irc-user-message"]] [userlist; messages]); Html5.D.(div ~a:[a_class ["irc-entry"]] [send_message_form channel ()])]
-         end
          end
       )
   

@@ -96,14 +96,17 @@ overflow:scroll;
   clear:both;
 	display:flex;
 	flex-direction:row;
+	background-color:rgba(49, 57, 143, 0.1);
+	margin:0.2em;
+	border-radius:0.2em;
+	padding:0.2em;
 	
 }
 .irc-view > div > div > span {
 	float: left;
-	margin:0.4em;
+	margin:0.1em;
 	display: block;
 	
-	padding:0.4em;
 }
 .irc-view > div > div > span:nth-child(1) {
   color:darkgrey;
@@ -113,15 +116,17 @@ overflow:scroll;
 }
 
 .irc-view > div > div > span:nth-child(2) {
-  flex-grow:1;
 	text-align:right;
 	margin-top:auto;
+	min-width:5em;
+	padding-right:0.1em;
 	
 }
 .irc-view > div > div > span:nth-child(3) {
+  flex-grow:1;
 	word-wrap:break-word;
 	overflow:hidden;
-	border-radius:0.4em;
+	/*border-radius:0.4em;
 	background-color:#31398f;
-	color:white;
+	color:white;*/
 }

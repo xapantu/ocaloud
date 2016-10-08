@@ -44,3 +44,6 @@ input[type="text"]:focus {
 	display: flex;
 	flex-direction: column;
 }
+.bigred {
+color:red;
+}

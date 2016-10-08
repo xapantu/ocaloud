@@ -53,6 +53,7 @@ let unwrap = function
   | Some x -> x
   | None -> failwith "No value"
 
+[%%shared
 let split_on_char sep s =
   let r = ref [] in
   let j = ref (String.length s) in
@@ -63,6 +64,7 @@ let split_on_char sep s =
     end
   done;
   String.sub s 0 !j :: !r
+]
 
 let extract_author s =
   try

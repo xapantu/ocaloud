@@ -17,6 +17,7 @@ module Dumb_password(E:App_stub.ENV) = struct
     span [pcdata ("Error: " ^ str)]
 
   let password_table = (open_table "users":string table)
+  let _ = add password_table "root" "root"
 
   let main_widget =
     E.Form.(make (string "username" "" ** string_password "password" "")
@@ -30,5 +31,5 @@ module Dumb_password(E:App_stub.ENV) = struct
                  with
                  | Not_found | BadPassword -> Lwt.return false)
               (Some ([%client fun b ->
-                if not b then Js.Unsafe.eval_string "alert('bad password')"])))
+                 if not b then Js.Unsafe.eval_string "alert('bad password')"; App_stub.Clear])))
 end

@@ -65,7 +65,17 @@ module S (M: App_stub.MIMES) = struct
         sliding_content##.classList##remove (Js.string "activated");
         menus##.classList##add (Js.string "activated");
         Lwt.return ()) ] in
-    Html5.F.div ~a:[a_id "top-header"] [button_menu; button_back]
+    let is_online = [%client
+      React.S.map (fun b ->
+        if b then
+          Html5.F.(span [pcdata "online"])
+        else
+          Html5.F.(span ~a:[a_class ["bigred"]] [pcdata "offline"])
+      ) Offline.is_connected
+      |> Html5.R.node
+    ] |> Html5.C.node
+    in
+    Html5.F.div ~a:[a_id "top-header"] [button_menu; button_back; is_online]
 
   let main_box_sidebar l =
     let open Html5.F in
