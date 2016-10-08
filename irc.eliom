@@ -27,6 +27,7 @@ open React
 module IrcApp(Env:App_stub.ENVBASE) = struct
 
   module Irc_engine = Irc_engine(Env)
+  open Irc_engine
 
   let service =
     Eliom_service.App.service

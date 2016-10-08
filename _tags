@@ -4,7 +4,7 @@
 <widgets*>: package(eliom.server),thread,package(lwt.ppx)
 <client/*>: package(eliom.client), package(lwt.ppx), package(react), package(js_of_ocaml.ppx), linkall
 <common_client*>: package(eliom.client)
-<data/*>: for-pack(Data), package(react), package(eliom.server), thread, package(lwt.ppx), package(inotify.lwt), package(ppx_deriving_protobuf)
+<data/*>: for-pack(Data), package(react), package(eliom.server), thread, package(lwt.ppx), package(inotify.lwt), package(ppx_deriving_protobuf), package(irmin.unix)
 <bep/*>: package(lwt.ppx),package(sqlite3),package(sha),package(inotify.lwt),package(ppx_bitstring.ext), package(bitstring),package(lwt.ssl),for-pack(Bep), thread
 <utils/*>:for-pack(Utils), thread
 <utils/kvstore*>:package(sqlite3), thread

@@ -3,22 +3,22 @@
     open Lwt
 
     type irc_message = {
-      content:string; [@key 1]
-      timestamp:float; [@key 2]
-      author: string; [@key 3]
+      content:string [@key 1];
+      timestamp:float [@key 2];
+      author: string [@key 3];
     } [@@deriving protobuf]
 
     type irc_channel = {
-      name:string; [@key 1]
-      server:string; [@key 2]
+      name:string [@key 1];
+      server:string [@key 2];
     } [@@deriving protobuf]
 
     type irc_account = {
-      server: string; [@key 1]
-      port: int; [@key 2]
-      username: string; [@key 3]
-      realname: string; [@key 4]
-      nick: string; [@key 5]
+      server: string [@key 1];
+      port: int [@key 2];
+      username: string [@key 3];
+      realname: string [@key 4];
+      nick: string [@key 5];
     } [@@deriving protobuf]
 
     type connection_state =
@@ -28,22 +28,16 @@
     [@@deriving protobuf]
 
     type irc_connected = {
-      state: connection_state; [@key 1]
-      time: float; [@key 2]
+      state: connection_state [@key 1];
+      time: float [@key 2];
     } [@@deriving protobuf]
 
     type irc_user_list = {
-      users: string list; [@key 1]
-      time: float; [@key 2]
+      users: string list [@key 1];
+      time: float [@key 2];
     } [@@deriving protobuf]
 
 ]
-
-let irc_message_type = "irc-message", irc_message_from_protobuf, irc_message_to_protobuf
-let irc_channel_type = "irc-channel", irc_channel_from_protobuf, irc_channel_to_protobuf
-let irc_account_type = "irc-account", irc_account_from_protobuf, irc_account_to_protobuf
-let irc_connected_type = "irc-connected", irc_connected_from_protobuf, irc_connected_to_protobuf
-let irc_user_list_type = "irc-user-list", irc_user_list_from_protobuf, irc_user_list_to_protobuf
 
 module Irc = Irc_client_lwt_ssl
 
@@ -76,6 +70,12 @@ let extract_author s =
 module Irc_engine(Env:App_stub.ENVBASE) = struct
 
   open ReactiveData
+  
+  let irc_message_type = Env.Data.Objects.create_object_type "irc-message" irc_message_from_protobuf irc_message_to_protobuf
+  let irc_channel_type = Env.Data.Objects.create_object_type "irc-channel" irc_channel_from_protobuf irc_channel_to_protobuf
+  let irc_account_type = Env.Data.Objects.create_object_type "irc-account" irc_account_from_protobuf irc_account_to_protobuf
+  let irc_connected_type = Env.Data.Objects.create_object_type "irc-connected" irc_connected_from_protobuf irc_connected_to_protobuf
+  let irc_user_list_type = Env.Data.Objects.create_object_type "irc-user-list" irc_user_list_from_protobuf irc_user_list_to_protobuf
 
   let%lwt all_channels = Env.Data.Objects.get_object_of_type irc_channel_type
 
