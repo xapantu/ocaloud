@@ -94,7 +94,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
          let%lwt channel = Env.Data.Objects.save_object irc_channel_type
              {name=channel; server=real_account.server; }
          in
-         Env.Data.Objects.link_to_parent account channel
+         Env.Data.Objects.link_to_parent account irc_account_type channel irc_channel_type
       ) None
 
   let () =
@@ -184,7 +184,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              let irc_messages = irc_messages
                                 |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
                                 |> React.S.map (List.sort (fun i j -> compare j.timestamp i.timestamp))
-                                |> React.S.map @@ list_truncate 100
+                                |> React.S.map @@ list_truncate 500
                                 |> React.S.map (fun l ->
                                   match l with
                                   | t::q ->

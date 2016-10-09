@@ -30,12 +30,13 @@ module type DATA = sig
     type _ object_data
     val create_object_type: string -> (Protobuf.Decoder.t -> 'a) -> ('a -> Protobuf.Encoder.t -> unit) -> 'a object_type
     val save_object: 'a object_type -> 'a -> 'a object_data Lwt.t
-    val link_to_parent: 'a object_data -> 'b object_data -> unit Lwt.t
+    val link_to_parent: 'a object_data -> 'a object_type -> 'b object_data -> 'b object_type -> unit Lwt.t
     val get_object_of_type: 'a object_type -> 'a object_data list signal Lwt.t
     val object_get_all_children: 'c object_data -> 'a object_type -> 'a object_data list signal Lwt.t
     val get_parent: 'a object_type -> 'c object_data -> 'a object_data Lwt.t
     val get: 'a object_type -> 'a object_data -> 'a
     val get_id_as_string: 'a object_data -> string
+    val o_eq: 'a object_data -> 'a object_data -> bool
   end
 
 
