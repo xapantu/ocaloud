@@ -37,15 +37,18 @@ module S (M: App_stub.MIMES) = struct
   let forall_head = [meta
                      ~a:[a_name "viewport";
                          a_content "user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi"]
-                     (); ]
+                     ();
+                     (Unsafe.node "link" ~a:[Unsafe.string_attrib "rel" "manifest"; Unsafe.string_attrib "href" "/manifest.json"] []) 
+                            ]
+
   let main_box l =
     let open Html5.F in
     return (Eliom_tools.F.html
-      ~title:"ocaloud"
-      ~js:[["js"; "app.js"]]
-      ~css:[["css";"ocaloud.css"]]
-      ~other_head:forall_head
-      (body l))
+              ~title:"ocaloud"
+              ~js:[["js"; "app.js"]]
+              ~css:[["css";"ocaloud.css"]]
+              ~other_head:forall_head
+              (body l))
 
   let top_bar () =
     let button_menu = Html5.D.Raw.a [pcdata " "] in
@@ -89,11 +92,11 @@ module S (M: App_stub.MIMES) = struct
         l in
     let sliding_content = Html5.F.div ~a:[a_id "sliding-content"; a_class ["activated"]] [main_wrapper;] in
     Lwt.return (Eliom_tools.F.html
-      ~title:"ocaloud"
-      ~js:[["js"; "app.js"]]
-      ~css:[["css";"ocaloud.css"]]
-      ~other_head:forall_head
-      (body ([top_bar (); sidebar; sliding_content])))
+                  ~title:"ocaloud"
+                  ~js:[["js"; "app.js"]]
+                  ~css:[["css";"ocaloud.css"]]
+                  ~other_head:forall_head
+                  (body ([top_bar (); sidebar; sliding_content])))
 
   let flex_box_sidebar l =
     let open Html5.F in
@@ -107,11 +110,11 @@ module S (M: App_stub.MIMES) = struct
         l in
     let sliding_content = Html5.F.div ~a:[a_id "sliding-content"; a_class ["activated"]] [main_wrapper;] in
     Lwt.return (Eliom_tools.F.html
-      ~title:"ocaloud"
-      ~js:[["js"; "app.js"]]
-      ~css:[["css";"ocaloud.css"]]
-      ~other_head:forall_head
-      (body ([top_bar (); sidebar; sliding_content])))
+                  ~title:"ocaloud"
+                  ~js:[["js"; "app.js"]]
+                  ~css:[["css";"ocaloud.css"]]
+                  ~other_head:forall_head
+                  (body ([top_bar (); sidebar; sliding_content])))
 
   let make_page_redirect url l =
     Lwt.return (html
