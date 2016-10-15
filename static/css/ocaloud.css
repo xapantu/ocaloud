@@ -47,3 +47,8 @@ input[type="text"]:focus {
 .bigred {
 color:red;
 }
+
+/* forms */
+input:focus {
+	outline: none;
+}
