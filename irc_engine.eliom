@@ -133,7 +133,11 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
           match result with
           | `Ok ({ command = PRIVMSG (channel, msg) ; prefix = Some author; })->
             let msg = String.trim msg in
-            let%lwt target_channel = get_channel account channel in
+            let%lwt target_channel =
+              if channel = nick then
+                get_channel account (extract_author author)
+              else 
+                get_channel account channel in
             let%lwt msg_obj = save_message (new_message msg author) in
             let%lwt () = link_to_parent target_channel irc_channel_type  msg_obj irc_message_type in
             return ()
