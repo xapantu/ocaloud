@@ -6,6 +6,7 @@
       content:string [@key 1];
       timestamp:float [@key 2];
       author: string [@key 3];
+      read: bool [@key 4];
     } [@@deriving protobuf]
 
     type irc_channel = {
@@ -90,7 +91,7 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
       Lwt.return channel
   
   let new_message content author = 
-    {content; timestamp = Unix.gettimeofday (); author; }
+    {content; timestamp = Unix.gettimeofday (); author; read = false; }
 
   let ping_server account connection =
     let open Irc_message in

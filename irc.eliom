@@ -124,6 +124,32 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
              Env.F.main_box_sidebar [account_list; create_account_form (); join_channel_form ()]
          end
       )
+
+  let mark_as_read_service =
+    Eliom_service.Ocaml.post_coservice' ~post_params:(Eliom_parameter.string "channel") ()
+
+  let () =
+    Eliom_registration.Ocaml.register
+      ~service:mark_as_read_service
+      (fun () irc_channel_id ->
+         let%lwt objs = Env.Data.Objects.get_object_of_type irc_channel_type in
+         let c =
+           objs
+           |> React.S.value
+           |> List.find (fun i ->
+             Env.Data.Objects.get_id_as_string i = irc_channel_id)
+         in
+         let%lwt irc_messages = Env.Data.Objects.object_get_all_children c irc_message_type in
+         let l = React.S.value irc_messages in
+         let a, b =
+           List.map (fun i ->
+             let di = Env.Data.Objects.get irc_message_type i in
+             di, i) l
+           |> List.filter (fun (d, _) -> not d.read)
+           |> List.map (fun (d, i) -> { d with read = true }, i)
+           |> List.split in
+         Env.Data.Objects.update_objects irc_message_type b a
+      )
   
   
   let () =
@@ -180,6 +206,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                ) ~%user_list
                |> Html5.R.node
                ] |> Html5.C.node in
+             let channel_id = Env.Data.Objects.get_id_as_string channel in
              let%lwt irc_messages = Env.Data.Objects.object_get_all_children channel irc_message_type in
              let irc_messages = irc_messages
                                 |> React.S.map (List.map (Env.Data.Objects.get irc_message_type))
@@ -217,9 +244,15 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                ~%irc_messages 
                |> React.S.map (fun _ ->
                  (* yes, that's a hack *)
-                 let%lwt () = Lwt_js.sleep 0.1 in
                  let div = Eliom_content.Html5.To_dom.of_div message_div in
-                 return (div##.scrollTop := (div##.scrollHeight));
+                 let%lwt () = Lwt_js.sleep 0.1 in
+                 (div##.scrollTop := (div##.scrollHeight));
+                 if div##.offsetWidth > 0 then
+                   begin
+                     let%lwt () = Eliom_client.call_ocaml_service ~service:~%mark_as_read_service () ~%channel_id in
+                     Lwt.return_unit
+                   end
+                 else Lwt.return_unit
                )
                |> Lwt_react.S.keep;
                  Lwt.async (fun () ->
@@ -240,19 +273,33 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
 
       if User.is_logged () then
         let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
-        let all_irc_ev =
-          all_irc_channels
-          |> React.S.map (List.map @@ Env.Data.Objects.get irc_channel_type)
-          |> Offline.down_of_react in
+        let%lwt all_irc_ev =
+          Lwt_react.S.bind_s all_irc_channels (fun l ->
+            let%lwt chans =
+              Lwt_list.map_s begin fun o ->
+                let real_obj = Env.Data.Objects.get irc_channel_type o in
+                let%lwt children = Env.Data.Objects.object_get_all_children o irc_message_type in
+                let children = children
+                               |> React.S.map (List.filter (fun i ->
+                                 not (Env.Data.Objects.get irc_message_type i).read))
+                               |> React.S.map List.length
+                               |> React.S.map (fun l -> real_obj, l)
+                in
+                Lwt.return children
+              end l
+            in
+            Lwt.return @@ React.S.merge (fun a b -> b::a) [] chans )
+        in
+        let all_irc_ev = Offline.down_of_react all_irc_ev in
 
         let channel_list =
           [%client
-          Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }]
+          Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }, 42]
           |> React.S.map (fun all_chans ->
             all_chans
-            |> List.map (fun (l:irc_channel) ->
+            |> List.map (fun ((l:irc_channel), (unread_count:int)) ->
               let service = Eliom_service.preapply ~%service (l.server, l.name) in
-              Html5.F.(li [a ~service [pcdata l.name] ()]))
+              Html5.F.(li [a ~service [pcdata l.name; pcdata @@ Format.sprintf " (%d)" unread_count] ()]))
             |> List.rev
             |> (fun l ->
               Html5.F.(li [a ~service:~%account_service [pcdata "Settings"] () ]) :: l)

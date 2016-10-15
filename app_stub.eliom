@@ -37,6 +37,8 @@ module type DATA = sig
     val get: 'a object_type -> 'a object_data -> 'a
     val get_id_as_string: 'a object_data -> string
     val o_eq: 'a object_data -> 'a object_data -> bool
+    val update_objects: 'a object_type -> 'a object_data list -> 'a list -> unit Lwt.t
+    val update_object: 'a object_type -> 'a object_data -> 'a -> unit Lwt.t
   end
 
 

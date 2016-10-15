@@ -95,6 +95,38 @@ module Object_manager = struct
 
   let get_setter_for_type o =
     get_reacts_for_type o >|= snd
+
+  let update_type o new_datas ids =
+    let l =
+    begin
+      try
+        [Hashtbl.find all_type_signals o.name]
+      with
+      | Not_found -> []
+    end
+    in
+    let l = ref l in
+    Hashtbl.iter (fun (a, n) s ->
+      if n = o.name then
+        l := s :: !l
+      else
+        ()) all_children_signals;
+    let all = List.combine new_datas ids in
+    Lwt_list.iter_s (fun s ->
+      let%lwt signal, (setter: ?step:React.step -> (bytes * object_id) list -> unit) = s in
+      let v = React.S.value signal in
+      let t = List.map (fun (obj_d, obj_id) ->
+        try
+          let l = List.find (fun (d, id) -> id = obj_id) all in
+          l
+        with
+        | Not_found ->
+          (obj_d, obj_id)) v
+      in
+      setter t;
+      Lwt.return_unit
+    ) (!l)
+
   
   let fresh_id () =
     let%lwt myid = Ocsipersist.make_persistent value_store "ids" 1 in
@@ -132,6 +164,21 @@ module Object_manager = struct
     let%lwt signal = get_signal_children a obj_type in
     setter ((db, b) :: React.S.value signal);
     Lwt.return_unit
+
+  let update_objects obj_type ids new_datas =
+    let new_datas = List.map (Protobuf.Encoder.encode_exn obj_type.enc) new_datas in
+    repo
+    >>= fun t ->
+    List.combine ids new_datas
+    |> Lwt_list.iter_s (fun ((_, a), data) ->
+      Store.update (t "Updating") ["_" ^ obj_type.name; a.id] data
+    )
+    >>=
+    fun () ->
+    update_type obj_type new_datas (List.map snd ids)
+
+  let update_object obj_type id d =
+    update_objects obj_type [id] [d]
 
   let get_parent obj_type child =
     repo
