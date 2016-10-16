@@ -121,7 +121,7 @@ module S (M: App_stub.MIMES) = struct
       ~title:"restricted area"
       ~js:[["js";"sjcl.js"]]
       ~css:[["css";"main.css"]]
-      ~other_head:((meta ~a:[a_http_equiv "refresh"; a_content ("1;url="^url) ] ())::forall_head)
+      ~other_head:((meta ~a:[a_http_equiv "refresh"; a_content ("0;url="^url) ] ())::forall_head)
       (body l
       ))
 

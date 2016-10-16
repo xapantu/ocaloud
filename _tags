@@ -9,3 +9,4 @@
 <utils/*>:for-pack(Utils), thread
 <utils/kvstore*>:package(sqlite3), thread
 <server/irc*>: package(irc-client.lwt_ssl)
+"server/ocaloudcore.native": package(irmin), package(irmin.unix), package(inotify.lwt), package(irc-client.lwt_ssl), package(ocsigenserver), package(ocsigenserver.ext.ocsipersist-dbm), package(ocsigenserver.ext.staticmod), package(sha), package(eliom.server)

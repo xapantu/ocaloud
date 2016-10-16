@@ -14,7 +14,7 @@ module Welcome(E:App_stub.ENV) = struct
     Eliom_service.App.service ~path:[] ~get_params:Eliom_parameter.unit ()
 
   let () =
-    Eliom_registration.Any.register
+    E.Config.App.register
       ~service:main_service
       (fun () () ->
          let all_public = E.Mimes.get_all_public_services ()
@@ -37,7 +37,6 @@ module Welcome(E:App_stub.ENV) = struct
              |> Html5.R.node
            ] |> Html5.C.node in
          E.F.main_box [logged_mention; div all_public]
-         >>= E.Config.App.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=6000" empty)
       )
 end
 

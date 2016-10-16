@@ -11,61 +11,62 @@ open Photos
 open Files
 open Welcome
 open Irc
+let _ =  Eliom_service.register_eliom_module "ocaloudcore" (fun () ->
 
-module Ocaloudcore_app =
-  Eliom_registration.App (
-  struct
-    let application_name = "ocaloudcore"
-  end)
+  let module Ocaloudcore_app =
+    Eliom_registration.App (
+    struct
+      let application_name = "ocaloudcore"
+    end) in
 
-module Config = Config(Ocaloudcore_app)
-module Data = Data.Volume_manager.VolumeManager(Config)
-
-
-(* Apps can register to read, write, use a filetype, and ask for apps
- * that can do those things. *)
-module Mimes = Mimes(Config)
-(*module User = User(Data)*)
+  let module Config = Config(Ocaloudcore_app) in
+  let module Data = Data.Volume_manager.VolumeManager(Config) in
 
 
-module Env = struct
-  module Mimes = Mimes
-  module Config = Config
-  module Data = Data
-  module F = Widgets.S(Mimes)
-  module Form = Myform.Form(Data)
-end
+  (* Apps can register to read, write, use a filetype, and ask for apps
+   * that can do those things. *)
+  let module Mimes = Mimes(Config) in
+  (*module User = User(Data)*)
 
-module Welcome = Welcome(Env)
 
-module Files = Files(Env)
-module Permissions = User.Permissions(Env)
+  let module Env = struct
+    module Mimes = Mimes
+    module Config = Config
+    module Data = Data
+    module F = Widgets.S(Mimes)
+    module Form = Myform.Form(Data)
+  end in
 
-module EnvBase = struct
-  include Env
-  module Files = Files
-  module Permissions = Permissions
-  let welcome_service = Welcome.main_service
-end
+  let module Welcome = Welcome(Env) in
 
-module Photos = Photos(EnvBase)
-module Irc  = IrcApp(EnvBase)
+  let module Files = Files(Env) in
+  let module Permissions = User.Permissions(Env) in
 
-let _ = Data.load_volumes ()
+  let module EnvBase = struct
+    include Env
+    module Files = Files
+    module Permissions = Permissions
+    let welcome_service = Welcome.main_service
+  end in
 
-let main_service =
-  Eliom_service.App.service ~path:["main"] ~get_params:Eliom_parameter.unit ()
+  let module Photos = Photos(EnvBase) in
+  let module Irc  = IrcApp(EnvBase) in
 
-let () =
-  Config.App.register
-    ~service:main_service
-    (fun () () ->
-           Lwt.return
+  let _ = Data.load_volumes () in
+
+  let main_service =
+    Eliom_service.App.service ~path:["main"] ~get_params:Eliom_parameter.unit () in
+
+  let () =
+    Config.App.register
+      ~service:main_service
+      (fun () () ->
+         Lwt.return
            (Eliom_tools.F.html
               ~title:"reactivenodes"
               ~css:[["css"; "reactivenodes.css"]]
               Html5.F.(body [p [pcdata "ocaloud v1"]])
-           ))
+           )) in
 
 (*
 let manifest =
@@ -83,7 +84,9 @@ css/ocaloud.css
        Eliom_registration.String.send ~headers:Http_headers.(add (name "Cache-Control")  "max-age=100" empty) (appcache, ""))*)
 
 
-let () = Mimes.register_public "main" main_service
+  let () = Mimes.register_public "main" main_service in
+  ()
+)
 
 (* let _ = Bep.Main.start_syncing ()*)
 [%%client

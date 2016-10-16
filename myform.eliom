@@ -81,7 +81,7 @@ module Form(Data: App_stub.DATA) = struct
     | TAtomOpt(_) -> failwith "unhandled optional field"
     | TAtom(n, _, TNone) -> Obj.magic @@ (Eliom_parameter.unit, fun i -> i)
 
-  let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> 'e Lwt.t) -> ('e -> App_stub.action_on_form) Eliom_lib.client_value option -> 'c -> unit -> Widgets.div_content =
+  let make_parametrized: ('a, 'b) params_type -> ('c, 'd) params_type -> ('c -> 'a -> 'e Lwt.t) -> (unit -> ('e -> App_stub.action_on_form) Eliom_lib.client_value) option -> 'c -> unit -> Widgets.div_content =
     fun params params_c callback client_callback ->
       let eliom_params, (translator: ('b * 'd) -> ('a * 'c)) = to_eliom (TProd(params, params_c)) in
       let coservice: ('b * 'd , 'f) cocaml = service_stub eliom_params (fun a ->
@@ -155,6 +155,10 @@ module Form(Data: App_stub.DATA) = struct
       in
       let to_serialized_c = to_serialized params_c in
       fun c () ->
+        let client_callback = match client_callback with
+          | Some f -> Some (f ())
+          | None -> None
+        in
         let d = to_serialized_c c in
         let elt, (get_values:(unit -> 'b) Eliom_lib.client_value) = build_form (params) in
         let myinput = Html5.D.(Form.input ~input_type:`Submit ~value:"send" Form.string) in
@@ -223,7 +227,7 @@ module Form(Data: App_stub.DATA) = struct
         ] in
         Html5.F.div [Html5.D.(Raw.form ~a:[a_onsubmit full_cb] [elt; myinput])]
   
-  let make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> ('c -> App_stub.action_on_form) Eliom_lib.client_value option -> unit -> Widgets.div_content =
+  let make: ('a, 'b) params_type -> ('a -> 'c Lwt.t) -> (unit -> ('c -> App_stub.action_on_form) Eliom_lib.client_value) option -> unit -> Widgets.div_content =
     fun params callback client_cb ->
       make_parametrized params (TAtom("none", (), TNone)) (fun () -> callback) client_cb ()
 
