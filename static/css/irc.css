@@ -46,6 +46,7 @@
 	flex-direction:column;
 	overflow:hidden;
 	font-size:0.85em;
+	flex-grow:1;
 }
 .irc-user-message > ul li {
 display:block;
@@ -65,6 +66,7 @@ overflow:scroll;
     flex-direction: row;
     overflow: hidden;
 	background-color: rgba(255, 255, 255, 0.4);
+	flex-grow:1;
 }
 }
 
