@@ -294,7 +294,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
 
         let channel_list =
           [%client
-          Offline.if_online (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }, 42]
+          Offline.if_online "sidebar_irc"  (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }, 42]
           |> React.S.map (fun all_chans ->
             all_chans
             |> List.map (fun ((l:irc_channel), (unread_count:int)) ->

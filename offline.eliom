@@ -44,10 +44,26 @@ let time_update_signal = down_of_react time_update_signal
   open Lwt
   let persistent_of_react n a = a
 
-  let if_online: (unit -> 'a React.signal) -> 'a -> 'a React.signal = fun  a b ->
-    let getter, setter = React.S.create [] in
+  let if_online: string -> (unit -> 'a React.signal) -> 'a -> 'a React.signal = fun name a b ->
+    let b = 
+    Js.Optdef.case Dom_html.window##.localStorage (fun () ->
+      b)
+      (fun localStorage ->
+         Js.Opt.case (localStorage##getItem (Js.string name)) (fun () ->
+           b)
+           (fun a ->
+              let b:'a = Json.unsafe_input a in
+              b
+           )
+      )
+    in
+    let getter, setter = React.S.create b in
     Lwt.async (fun () ->
       let result = a () in
+      let%lwt () = Js.Optdef.case Dom_html.window##.localStorage (fun () ->
+        Lwt_log_js.warning "localstorage not defined, nothing in cache")
+        (fun localStorage ->
+           Lwt.return @@ localStorage##setItem (Js.string name) (Json.output (React.S.value result))) in
       React.S.map setter result |> Lwt_react.S.keep |> return
       );
     setter b; getter
