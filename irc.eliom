@@ -15,11 +15,14 @@
 
 [%%client
 let extract_author s =
-  try
-    let i = String.index s '!' in
-    String.sub s 0 i
-  with
-  | Not_found -> s
+  let s =
+    try
+      let i = String.index s '!' in
+      String.sub s 0 i
+    with
+    | Not_found -> s
+  in
+  s, (Format.sprintf "color:#%6x" (Hashtbl.hash s mod 0xaacccc))
 
 
 let visiblitychange (f:Dom_html.event Js.t -> unit Lwt.t -> unit Lwt.t) =
@@ -94,11 +97,12 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
       Format.sprintf "%s (%s)" irc_account.server irc_account.username
     )
     in
-    Env.Form.(make (string "Channel" "" ** string_list "Server" all_accounts get_server_name))
-      (fun (channel, account) ->
+    Env.Form.(make (string "Channel" "" ** string "Password" "" ** string_list "Server" all_accounts get_server_name))
+      (fun (channel, (password, account)) ->
          let real_account = Env.Data.Objects.get irc_account_type account in
+         let password = if password = "" then None else Some password in
          let%lwt channel = Env.Data.Objects.save_object irc_channel_type
-             {name=channel; opened = true; server=real_account.server; }
+             {name=channel; opened = true; server=real_account.server; password; }
          in
          Env.Data.Objects.link_to_parent account irc_account_type channel irc_channel_type
       ) None
@@ -134,6 +138,9 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
   let mark_as_read_service =
     Eliom_service.Ocaml.post_coservice' ~post_params:(Eliom_parameter.string "channel") ()
 
+  let mark_as_closed =
+    Eliom_service.Ocaml.post_coservice' ~post_params:(Eliom_parameter.string "channel") ()
+
   let () =
     Eliom_registration.Ocaml.register
       ~service:mark_as_read_service
@@ -156,6 +163,23 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
            |> List.split in
          Env.Data.Objects.update_objects irc_message_type b a
       )
+
+  let () = 
+    Eliom_registration.Ocaml.register
+      ~service:mark_as_closed
+      (fun () irc_channel_id ->
+         let%lwt objs = Env.Data.Objects.get_object_of_type irc_channel_type in
+         let c =
+           objs
+           |> React.S.value
+           |> List.find (fun i ->
+             Env.Data.Objects.get_id_as_string i = irc_channel_id)
+         in
+         let d = Env.Data.Objects.get irc_channel_type c in
+         let d = { d with opened = false } in
+         Env.Data.Objects.update_object irc_channel_type c d
+      )
+
   
   
   let () =
@@ -241,7 +265,8 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  |> React.S.map (List.map (fun l ->
                    let t = Js.Unsafe.eval_string (Format.sprintf "(new Date(%f)).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})" (l.timestamp*.1000.) ) in
                    let content = Irc_engine.split_on_char '\n' l.content |> List.fold_left (fun l a -> Html5.F.pcdata a:: Html5.F.br () :: l) [] in
-                   Html5.F.(div [span [pcdata (Js.to_string t)]; span [pcdata " "; pcdata (extract_author l.author)]; span content])
+                   let auth, color = extract_author l.author in
+                   Html5.F.(div [span [pcdata (Js.to_string t)]; span ~a:[a_style color] [pcdata " "; pcdata auth]; span content])
                  ))
                  |> React.S.map Html5.F.div
                  |> Html5.R.node
@@ -284,7 +309,9 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
     Env.Mimes.register_sidebar "irc" (fun () ->
 
       if User.is_logged () then
-        let%lwt all_irc_channels = Env.Data.Objects.get_object_of_type irc_channel_type in
+        let%lwt all_irc_channels =
+          Env.Data.Objects.get_object_of_type irc_channel_type
+          >|= React.S.map (List.filter (fun c -> (Env.Data.Objects.get irc_channel_type c).opened)) in
         let%lwt all_irc_ev =
           Lwt_react.S.bind_s all_irc_channels (fun l ->
             let%lwt chans =
@@ -306,7 +333,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
 
         let channel_list =
           [%client
-          Offline.if_online "sidebar_irc"  (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; opened = true; }, 42]
+          Offline.if_online "sidebar_irc"  (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; opened = true; password = None; }, 42]
           |> React.S.map (fun all_chans ->
             all_chans
             |> List.map (fun ((l:irc_channel), (unread_count:int)) ->

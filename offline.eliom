@@ -60,11 +60,12 @@ let time_update_signal = down_of_react time_update_signal
     let getter, setter = React.S.create b in
     Lwt.async (fun () ->
       let result = a () in
-      let%lwt () = Js.Optdef.case Dom_html.window##.localStorage (fun () ->
-        Lwt_log_js.warning "localstorage not defined, nothing in cache")
-        (fun localStorage ->
-           Lwt.return @@ localStorage##setItem (Js.string name) (Json.output (React.S.value result))) in
-      React.S.map setter result |> Lwt_react.S.keep |> return
+      React.S.map (fun result ->
+        let%lwt () = Js.Optdef.case Dom_html.window##.localStorage (fun () ->
+          Lwt_log_js.warning "localstorage not defined, nothing in cache")
+          (fun localStorage ->
+             Lwt.return @@ localStorage##setItem (Js.string name) (Json.output result)) in
+        Lwt.return (setter result)) result |> Lwt_react.S.keep |> return
       );
     setter b; getter
 ]

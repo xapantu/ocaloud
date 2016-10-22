@@ -13,6 +13,7 @@
       name:string [@key 1];
       server:string [@key 2];
       opened: bool [@key 3];
+      password: string option [@key 4];
     } [@@deriving protobuf]
 
     type irc_account = {
@@ -87,7 +88,7 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
       |> return
     with
     | Not_found ->
-      let%lwt channel = Env.Data.Objects.save_object irc_channel_type {name; opened = true; server = (Env.Data.Objects.get irc_account_type account).server;} in
+      let%lwt channel = Env.Data.Objects.save_object irc_channel_type {name; opened = true; password = None; server = (Env.Data.Objects.get irc_account_type account).server;} in
       let%lwt () = Env.Data.Objects.link_to_parent account irc_account_type channel irc_channel_type in
       Lwt.return channel
   
@@ -155,12 +156,15 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
               rm_user i author) channels
           | `Ok ({ command = QUIT (msg) ; prefix = Some author; })->
             let author = extract_author author in
-            Hashtbl.fold (fun i _ l ->
+            Hashtbl.fold (fun i user_list l ->
               let%lwt () = l in
-              let%lwt target_channel = get_channel account i in
-              let%lwt msg_obj = save_message (new_message (Format.sprintf "%s quit. (%s)" author msg) "") in
-              let%lwt () = link_to_parent target_channel irc_channel_type msg_obj irc_message_type in
-              rm_user i author) users Lwt.return_unit
+              if List.mem author user_list then
+                let%lwt target_channel = get_channel account i in
+                let%lwt msg_obj = save_message (new_message (Format.sprintf "%s quit. (%s)" author msg) "") in
+                let%lwt () = link_to_parent target_channel irc_channel_type msg_obj irc_message_type in
+                rm_user i author
+              else
+                Lwt.return_unit) users Lwt.return_unit
           | `Ok ({ command = NICK (new_name) ; prefix = Some author; })->
             let author = extract_author author in
             Hashtbl.fold (fun i _ l ->
@@ -246,9 +250,15 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
             List.map (Env.Data.Objects.get irc_channel_type) l) all_chans
           |> ReactiveData.RList.from_signal
           |> RList.map (fun channel ->
-            Ocsigen_messages.errlog (Format.sprintf "joining %s on server %s" channel.name server);
-            let channel = channel.name in
-            Irc.send_join ~connection ~channel)
+            if channel.opened then
+              begin
+              Ocsigen_messages.errlog (Format.sprintf "joining %s on server %s" channel.name server);
+              let password = channel.password in
+              let channel = channel.name in
+              Irc.send_join_passwd ~connection ~channel ~password
+              end
+            else
+              Lwt.return_unit)
           |> return
         in
         ping_server account connection
