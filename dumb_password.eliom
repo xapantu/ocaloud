@@ -11,14 +11,13 @@ open Ocsipersist
 
 module Dumb_password(E:App_stub.ENV) = struct
 
-  let _ = Ocsigen_messages.warning "load3"
   exception BadPassword
 
   let send_error str =
     span [pcdata ("Error: " ^ str)]
 
   let password_table = (open_table "users":string table)
-  let _ = add password_table "root" "root"
+  (*let _ = add password_table "root" "root2"*)
 
   let main_widget =
     E.Form.(make (string "username" "" ** string_password "password" "")
