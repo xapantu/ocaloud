@@ -12,6 +12,7 @@
     type irc_channel = {
       name:string [@key 1];
       server:string [@key 2];
+      opened: bool [@key 3];
     } [@@deriving protobuf]
 
     type irc_account = {
@@ -86,7 +87,7 @@ module Irc_engine(Env:App_stub.ENVBASE) = struct
       |> return
     with
     | Not_found ->
-      let%lwt channel = Env.Data.Objects.save_object irc_channel_type {name; server = (Env.Data.Objects.get irc_account_type account).server;} in
+      let%lwt channel = Env.Data.Objects.save_object irc_channel_type {name; opened = true; server = (Env.Data.Objects.get irc_account_type account).server;} in
       let%lwt () = Env.Data.Objects.link_to_parent account irc_account_type channel irc_channel_type in
       Lwt.return channel
   

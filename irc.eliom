@@ -20,6 +20,12 @@ let extract_author s =
     String.sub s 0 i
   with
   | Not_found -> s
+
+
+let visiblitychange (f:Dom_html.event Js.t -> unit Lwt.t -> unit Lwt.t) =
+  let ev = Dom.Event.make "visibilitychange" in
+  let vi = Lwt_js_events.make_event ev in
+  Lwt_js_events.seq_loop vi Dom_html.document f
 ]
 
 open React
@@ -92,7 +98,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
       (fun (channel, account) ->
          let real_account = Env.Data.Objects.get irc_account_type account in
          let%lwt channel = Env.Data.Objects.save_object irc_channel_type
-             {name=channel; server=real_account.server; }
+             {name=channel; opened = true; server=real_account.server; }
          in
          Env.Data.Objects.link_to_parent account irc_account_type channel irc_channel_type
       ) None
@@ -247,7 +253,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                  let div = Eliom_content.Html5.To_dom.of_div message_div in
                  let%lwt () = Lwt_js.sleep 0.1 in
                  (div##.scrollTop := (div##.scrollHeight));
-                 if div##.offsetWidth > 0 then
+                 if div##.offsetWidth > 0 && not (Js.Unsafe.get (Dom_html.document) "hidden") then
                    begin
                      let%lwt () = Eliom_client.call_ocaml_service ~service:~%mark_as_read_service () ~%channel_id in
                      Lwt.return_unit
@@ -260,6 +266,12 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                      let div = Eliom_content.Html5.To_dom.of_div message_div in
                      return (div##.scrollTop := (div##.scrollHeight));
                    )
+               );
+               Lwt.async (fun () ->
+                 visiblitychange (fun _ _ ->
+                     let%lwt () = Eliom_client.call_ocaml_service ~service:~%mark_as_read_service () ~%channel_id in
+                     Lwt.return_unit
+                 );
                );
                message_div
                ] |> Html5.C.node
@@ -294,7 +306,7 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
 
         let channel_list =
           [%client
-          Offline.if_online "sidebar_irc"  (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; }, 42]
+          Offline.if_online "sidebar_irc"  (fun () -> ~%all_irc_ev) [{server = "offline_server"; name ="offline_chan"; opened = true; }, 42]
           |> React.S.map (fun all_chans ->
             all_chans
             |> List.map (fun ((l:irc_channel), (unread_count:int)) ->
