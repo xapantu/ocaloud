@@ -294,7 +294,11 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                );
                Lwt.async (fun () ->
                  visiblitychange (fun _ _ ->
+                   let div = Eliom_content.Html5.To_dom.of_div message_div in
+                   if div.##offsetWidth > 0 && not (Js.Unsafe.get (Dom_html.document) "hidden") then
                      let%lwt () = Eliom_client.call_ocaml_service ~service:~%mark_as_read_service () ~%channel_id in
+                     Lwt.return_unit
+                   else
                      Lwt.return_unit
                  );
                );
