@@ -324,7 +324,8 @@ module IrcApp(Env:App_stub.ENVBASE) = struct
                 let%lwt children = Env.Data.Objects.object_get_all_children o irc_message_type in
                 let children = children
                                |> React.S.map (List.filter (fun i ->
-                                 not (Env.Data.Objects.get irc_message_type i).read))
+                                 let m = Env.Data.Objects.get irc_message_type i in
+                                 not m.read && m.author <> ""))
                                |> React.S.map List.length
                                |> React.S.map (fun l -> real_obj, l)
                 in
